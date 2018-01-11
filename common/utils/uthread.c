@@ -30,6 +30,9 @@ THE SOFTWARE.
 #if defined(KERNEL_MODE)
 #include <linux/init.h>
 #include <linux/module.h>
+/* kernel version compatibility for 4.14 */
+#include <linux/signal.h>
+#include <linux/sched/signal.h>
 
 int h4h_thread_fn (void *data) 
 {

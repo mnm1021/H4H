@@ -40,6 +40,9 @@ THE SOFTWARE.
 #define h4h_daemonize(a)
 #endif
 
+/* kernel version compatibility for 4.14 */
+typedef struct wait_queue_entry wait_queue_t;
+
 typedef struct {
 	/* thread management */
 	h4h_mutex_t thread_done;
