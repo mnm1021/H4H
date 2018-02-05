@@ -220,6 +220,9 @@ uint32_t __hlm_nobuf_make_rw_req (h4h_drv_info_t* bdi, h4h_hlm_req_t* hr)
 
 	h4h_bug_on (hr->nr_llm_reqs != i);
 
+	if (phyaddrs != NULL)
+		h4h_free (phyaddrs);
+
 	return 0;
 
 fail:
