@@ -337,6 +337,9 @@ typedef struct {
 	void (*finish_mapblk_eviction) (h4h_drv_info_t* bdi, h4h_llm_req_t* r);
 	h4h_llm_req_t* (*prepare_mapblk_load) (h4h_drv_info_t* bdi, uint64_t lpa);
 	void (*finish_mapblk_load) (h4h_drv_info_t* bdi, h4h_llm_req_t* r);
+
+	/* interfaces for block-granularity */
+	int32_t (*get_free_ppas) (h4h_drv_info_t* bdi, int64_t lpa, uint32_t size, h4h_phyaddr_t* start_ppa);
 } h4h_ftl_inf_t;
 
 

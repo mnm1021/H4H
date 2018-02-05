@@ -68,6 +68,8 @@ typedef struct {
 	babm_abm_subpage_t* pst;	/* a page status table; used when the FTL requires */
 
 	struct list_head list;	/* for list */
+
+	uint16_t offset; /* page offset */
 } h4h_abm_block_t;
 
 typedef struct {

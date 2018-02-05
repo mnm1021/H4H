@@ -137,6 +137,7 @@ h4h_abm_info_t* h4h_abm_create (
 		bai->blocks[loop].erase_count = 0;
 		bai->blocks[loop].pst = NULL;
 		bai->blocks[loop].nr_invalid_subpages = 0;
+		bai->blocks[loop].offset = 0;
 		/* create a 'page status table' (pst) if necessary */
 		if (use_pst) {
 			if ((bai->blocks[loop].pst = __h4h_abm_create_pst (np)) == NULL) {

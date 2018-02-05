@@ -64,6 +64,8 @@ h4h_ftl_inf_t _ftl_page_ftl = {
 	/*.load = h4h_page_ftl_load,*/
 	/*.store = h4h_page_ftl_store,*/
 	/*.get_segno = NULL,*/
+
+	.get_free_ppas = h4h_page_ftl_get_free_ppas,
 };
 
 
@@ -151,7 +153,7 @@ uint32_t __h4h_page_ftl_get_active_blocks (
 			/* prepare & commit free blocks */
 			if ((*bab = h4h_abm_get_free_block_prepare (bai, i, j))) {
 				h4h_abm_get_free_block_commit (bai, *bab);
-				/*h4h_msg ("active blk = %p", *bab);*/
+				/* h4h_msg ("active blk = %p", *bab); */
 				bab++;
 			} else {
 				h4h_error ("h4h_abm_get_free_block_prepare failed");
@@ -208,6 +210,7 @@ uint32_t h4h_page_ftl_create (h4h_drv_info_t* bdi)
 {
 	h4h_page_ftl_private_t* p = NULL;
 	h4h_device_params_t* np = H4H_GET_DEVICE_PARAMS (bdi);
+	int i;
 
 	/* create a private data structure */
 	if ((p = (h4h_page_ftl_private_t*)h4h_zmalloc 
@@ -349,6 +352,73 @@ uint32_t h4h_page_ftl_get_free_ppa (
 	}
 
 	return 0;
+}
+
+/**
+ * allocate sequential ppas on same block.
+ * returns the size of free ppas.
+ */
+int32_t h4h_page_ftl_get_free_ppas (
+	h4h_drv_info_t* bdi,
+	int64_t lpa,
+	uint32_t size,
+	h4h_phyaddr_t* start_ppa)
+{
+	h4h_page_ftl_private_t* p = _ftl_page_ftl.ptr_private;
+	h4h_device_params_t* np = H4H_GET_DEVICE_PARAMS (bdi);
+	h4h_abm_block_t* b = NULL;
+	uint64_t curr_channel;
+	uint64_t curr_chip;
+	int32_t ret_size;
+
+	/* get the channel & chip numbers */
+	curr_channel = p->curr_puid % np->nr_channels;
+	curr_chip = p->curr_puid / np->nr_channels;
+		
+	/* get active block */
+	b = p->ac_bab[curr_channel * np->nr_chips_per_channel + curr_chip];
+
+	/* get physical offset of the active blocks */
+	start_ppa->channel_no = b->channel_no;
+	start_ppa->chip_no = b->chip_no;
+	start_ppa->block_no = b->block_no;
+	start_ppa->page_no = b->offset;
+	start_ppa->punit_id = H4H_GET_PUNIT_ID (bdi, start_ppa);
+
+	/* check the offset of page: match the size */
+	if (start_ppa->page_no + size > np->nr_pages_per_block)
+	{
+		ret_size = np->nr_pages_per_block - start_ppa->page_no;
+		b->offset = np->nr_pages_per_block;
+	}
+	else
+	{
+		ret_size = size;
+		b->offset += size;
+	}
+
+	/* get next free block if block is full */
+	if (b->offset == np->nr_pages_per_block)
+	{
+		b = h4h_abm_get_free_block_prepare (p->bai, curr_channel, curr_chip);
+
+		if (b != NULL)
+		{
+			h4h_abm_get_free_block_commit (p->bai, b);
+		}
+		else
+		{
+			h4h_error ("h4h_abm_get_free_block_prepare failed");
+			return -1;
+		}
+
+		p->ac_bab[curr_channel * np->nr_chips_per_channel + curr_chip] = b;
+
+		/* advance to next puid */
+		p->curr_puid = (p->curr_puid + 1) % p->nr_punits;
+	}
+
+	return ret_size;
 }
 
 uint32_t h4h_page_ftl_map_lpa_to_ppa (

@@ -57,6 +57,7 @@ THE SOFTWARE.
 	#define h4h_msg(fmt, ...)  \
 		do {    \
 			printf("h4h: " fmt "\n", ##__VA_ARGS__);  \
+			fflush(stdout);\
 		} while (0);
 	#define h4h_track() \
 		do {	\

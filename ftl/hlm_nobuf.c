@@ -109,6 +109,35 @@ uint32_t __hlm_nobuf_make_rw_req (h4h_drv_info_t* bdi, h4h_hlm_req_t* hr)
 	h4h_llm_req_t* lr = NULL;
 	uint64_t i = 0, j = 0, sp_ofs;
 
+	h4h_phyaddr_t start_ppa;
+	h4h_phyaddr_t* phyaddrs = NULL;
+	int32_t size, alloc_size;
+
+	/* allocate request by sequential address if write */
+	if (h4h_is_write (hr->req_type))
+	{
+		size = hr->nr_llm_reqs;
+		phyaddrs = h4h_malloc (sizeof(h4h_phyaddr_t) * size);
+		
+		while (size > 0)
+		{
+			alloc_size = ftl->get_free_ppas (bdi, 0, size, &start_ppa);
+			if (alloc_size < 0)
+			{
+				h4h_error ("'ftl->get_free_ppas' failed");
+				h4h_free (phyaddrs);
+				goto fail;
+			}
+
+			size -= alloc_size;
+			for (; i < alloc_size; ++i) /* i not initialized to continuously alloc */
+			{
+				phyaddrs[i] = start_ppa;
+				start_ppa.page_no += 1;
+			}
+		}
+	}
+
 	/* perform mapping with the FTL */
 	h4h_hlm_for_each_llm_req (lr, hr, i) {
 		/* (1) get the physical locations through the FTL */
@@ -123,10 +152,14 @@ uint32_t __hlm_nobuf_make_rw_req (h4h_drv_info_t* bdi, h4h_hlm_req_t* hr)
 					hlm_reqs_pool_relocate_kp (lr, sp_ofs);
 				}
 			} else if (h4h_is_write (lr->req_type)) {
+				/*
 				if (ftl->get_free_ppa (bdi, lr->logaddr.lpa[0], &lr->phyaddr) != 0) {
 					h4h_error ("`ftl->get_free_ppa' failed");
 					goto fail;
 				}
+				*/
+				lr->phyaddr = phyaddrs[i];
+
 				if (ftl->map_lpa_to_ppa (bdi, &lr->logaddr, &lr->phyaddr) != 0) {
 					h4h_error ("`ftl->map_lpa_to_ppa' failed");
 					goto fail;
