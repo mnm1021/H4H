@@ -159,6 +159,8 @@ uint32_t __hlm_nobuf_make_rw_req (h4h_drv_info_t* bdi, h4h_hlm_req_t* hr)
 				}
 				*/
 				lr->phyaddr = phyaddrs[i];
+				h4h_msg ("%d %d %d %d", lr->phyaddr.channel_no, lr->phyaddr.chip_no,
+						lr->phyaddr.block_no, lr->phyaddr.page_no);
 
 				if (ftl->map_lpa_to_ppa (bdi, &lr->logaddr, &lr->phyaddr) != 0) {
 					h4h_error ("`ftl->map_lpa_to_ppa' failed");
@@ -219,6 +221,9 @@ uint32_t __hlm_nobuf_make_rw_req (h4h_drv_info_t* bdi, h4h_hlm_req_t* hr)
 	}
 
 	h4h_bug_on (hr->nr_llm_reqs != i);
+
+	if (phyaddrs != NULL)
+		h4h_free (phyaddrs);
 
 	return 0;
 

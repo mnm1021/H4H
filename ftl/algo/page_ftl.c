@@ -102,6 +102,8 @@ typedef struct {
 
 	/* for bad-block scanning */
 	h4h_sema_t badblk;
+
+	h4h_abm_block_t* spare_blk;
 } h4h_page_ftl_private_t;
 
 
@@ -272,6 +274,9 @@ uint32_t h4h_page_ftl_create (h4h_drv_info_t* bdi)
 	h4h_sema_init (&p->gc_hlm_w.done);
 	hlm_reqs_pool_allocate_llm_reqs (p->gc_hlm_w.llm_reqs, p->nr_punits_pages, RP_MEM_PHY);
 
+	/* initialize spare block */
+	p->spare_blk = NULL;
+
 	return 0;
 }
 
@@ -367,6 +372,7 @@ int32_t h4h_page_ftl_get_free_ppas (
 	h4h_page_ftl_private_t* p = _ftl_page_ftl.ptr_private;
 	h4h_device_params_t* np = H4H_GET_DEVICE_PARAMS (bdi);
 	h4h_abm_block_t* b = NULL;
+	h4h_abm_block_t* new_block = NULL;
 	uint64_t curr_channel;
 	uint64_t curr_chip;
 	int32_t ret_size;
@@ -374,18 +380,37 @@ int32_t h4h_page_ftl_get_free_ppas (
 	/* get the channel & chip numbers */
 	curr_channel = p->curr_puid % np->nr_channels;
 	curr_chip = p->curr_puid / np->nr_channels;
-		
-	/* get active block */
-	b = p->ac_bab[curr_channel * np->nr_chips_per_channel + curr_chip];
 
-	/* get physical offset of the active blocks */
+	/* write to spare block if size is less than the block size */
+	if (size < np->nr_pages_per_block)
+	{
+		/* get new spare block if NULL of full */
+		if (p->spare_blk == NULL || p->spare_blk->offset == np->nr_pages_per_block)
+		{
+			p->spare_blk = p->ac_bab[curr_channel * np->nr_chips_per_channel + curr_chip];
+			p->curr_puid = (p->curr_puid + 1) % p->nr_punits;
+		}
+
+		b = p->spare_blk;
+
+		/* reset current channel and chip number according to the spare block */
+		curr_channel = b->channel_no;
+		curr_chip = b->chip_no;
+	}
+	else
+	{
+		b = p->ac_bab[curr_channel * np->nr_chips_per_channel + curr_chip];
+		p->curr_puid = (p->curr_puid + 1) % p->nr_punits;
+	}
+
+	/* get physical offset of the active block */
 	start_ppa->channel_no = b->channel_no;
 	start_ppa->chip_no = b->chip_no;
 	start_ppa->block_no = b->block_no;
 	start_ppa->page_no = b->offset;
 	start_ppa->punit_id = H4H_GET_PUNIT_ID (bdi, start_ppa);
 
-	/* check the offset of page: match the size */
+	/* set offset of block */
 	if (start_ppa->page_no + size > np->nr_pages_per_block)
 	{
 		ret_size = np->nr_pages_per_block - start_ppa->page_no;
@@ -397,7 +422,7 @@ int32_t h4h_page_ftl_get_free_ppas (
 		b->offset += size;
 	}
 
-	/* get next free block if block is full */
+	/* find next free block if block is full */
 	if (b->offset == np->nr_pages_per_block)
 	{
 		b = h4h_abm_get_free_block_prepare (p->bai, curr_channel, curr_chip);
@@ -413,9 +438,6 @@ int32_t h4h_page_ftl_get_free_ppas (
 		}
 
 		p->ac_bab[curr_channel * np->nr_chips_per_channel + curr_chip] = b;
-
-		/* advance to next puid */
-		p->curr_puid = (p->curr_puid + 1) % p->nr_punits;
 	}
 
 	return ret_size;
