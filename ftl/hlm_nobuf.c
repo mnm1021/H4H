@@ -111,17 +111,19 @@ uint32_t __hlm_nobuf_make_rw_req (h4h_drv_info_t* bdi, h4h_hlm_req_t* hr)
 
 	h4h_phyaddr_t start_ppa;
 	h4h_phyaddr_t* phyaddrs = NULL;
-	int32_t size, alloc_size;
+	int32_t size, alloc_size, total_alloc_size;
 
 	/* allocate request by sequential address if write */
 	if (h4h_is_write (hr->req_type))
 	{
 		size = hr->nr_llm_reqs;
 		phyaddrs = h4h_malloc (sizeof(h4h_phyaddr_t) * size);
+
+		total_alloc_size = 0;
 		
-		while (size > 0)
+		while (total_alloc_size < size)
 		{
-			alloc_size = ftl->get_free_ppas (bdi, 0, size, &start_ppa);
+			alloc_size = ftl->get_free_ppas (bdi, 0, size - total_alloc_size, &start_ppa);
 			if (alloc_size < 0)
 			{
 				h4h_error ("'ftl->get_free_ppas' failed");
@@ -129,10 +131,10 @@ uint32_t __hlm_nobuf_make_rw_req (h4h_drv_info_t* bdi, h4h_hlm_req_t* hr)
 				goto fail;
 			}
 
-			size -= alloc_size;
-			for (; i < alloc_size; ++i) /* i not initialized to continuously alloc */
+			total_alloc_size += alloc_size;
+			for (; i < total_alloc_size; ++i) /* i not initialized to continuously alloc */
 			{
-				phyaddrs[i] = start_ppa;
+				h4h_memcpy (&phyaddrs[i], &start_ppa, sizeof(h4h_phyaddr_t));
 				start_ppa.page_no += 1;
 			}
 		}
@@ -158,9 +160,7 @@ uint32_t __hlm_nobuf_make_rw_req (h4h_drv_info_t* bdi, h4h_hlm_req_t* hr)
 					goto fail;
 				}
 				*/
-				lr->phyaddr = phyaddrs[i];
-				h4h_msg ("%d %d %d %d", lr->phyaddr.channel_no, lr->phyaddr.chip_no,
-						lr->phyaddr.block_no, lr->phyaddr.page_no);
+				h4h_memcpy (&lr->phyaddr, &phyaddrs[i], sizeof(h4h_phyaddr_t));
 
 				if (ftl->map_lpa_to_ppa (bdi, &lr->logaddr, &lr->phyaddr) != 0) {
 					h4h_error ("`ftl->map_lpa_to_ppa' failed");
