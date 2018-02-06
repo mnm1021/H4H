@@ -74,9 +74,9 @@ void host_thread_fn_write (void *data)
 {
 	int i = 0, j = 0;
 	int offset = 0; /* sector (512B) */
-	int size = 8 * 32; /* 512B * 8 * 32 = 128 KB */
+	int size = 8 * 82; /* 512B * 8 * 32 = 128 KB */
 
-	for (i = 0; i < 1000; i++) {
+	for (i = 0; i < 110; i++) {
 		h4h_blkio_req_t* blkio_req = (h4h_blkio_req_t*)h4h_malloc (sizeof (h4h_blkio_req_t));
 
 		/* build blkio req */
@@ -105,9 +105,9 @@ void host_thread_fn_read (void *data)
 {
 	int i = 0, j = 0;
 	int offset = 0; /* sector (512B) */
-	int size = 8 * 32; /* 512B * 8 * 32 = 128 KB */
+	int size = 8 * 82; /* 512B * 8 * 32 = 128 KB */
 
-	for (i = 0; i < 1000; i++) {
+	for (i = 0; i < 110; i++) {
 		h4h_blkio_req_t* blkio_req = (h4h_blkio_req_t*)h4h_malloc (sizeof (h4h_blkio_req_t));
 
 		/* build blkio req */
