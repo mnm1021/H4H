@@ -50,3 +50,10 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+
+# cscope, tag
+cscope.files
+tags
+
+# etc
+frontend/user/make_through_script.sh
