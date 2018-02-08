@@ -59,16 +59,11 @@ THE SOFTWARE.
 #include "algo/page_ftl.h"
 #include "algo/dftl.h"
 
+#include "uatomic64.h"
+#include "lbl.h"
+
 /* main data structure */
 h4h_drv_info_t* _bdi = NULL;
-
-#define NUM_THREADS	20
-/*#define NUM_THREADS	20*/
-/*#define NUM_THREADS	10*/
-/*#define NUM_THREADS	1*/
-
-#include "h4h_drv.h"
-#include "uatomic64.h"
 
 void host_thread_fn_write (void *data) 
 {
@@ -137,11 +132,6 @@ void host_thread_fn_read (void *data)
 
 int main (int argc, char** argv)
 {
-	int loop_thread;
-
-	pthread_t thread[NUM_THREADS];
-	int thread_args[NUM_THREADS];
-
 	h4h_msg ("[main] run ftlib... (%d)", sizeof (h4h_llm_req_t));
 
 	h4h_msg ("[user-main] initialize h4h_drv");
@@ -159,32 +149,7 @@ int main (int argc, char** argv)
 	h4h_drv_run (_bdi);
 
 	do {
-		h4h_msg ("[main] start writes");
-		for (loop_thread = 0; loop_thread < NUM_THREADS; loop_thread++) {
-			thread_args[loop_thread] = loop_thread;
-			pthread_create (&thread[loop_thread], NULL, 
-				(void*)&host_thread_fn_write, 
-				(void*)&thread_args[loop_thread]);
-		}
-
-		h4h_msg ("[main] wait for threads to end...");
-		for (loop_thread = 0; loop_thread < NUM_THREADS; loop_thread++) {
-			pthread_join (thread[loop_thread], NULL);
-		}
-
-		h4h_msg ("[main] start reads");
-		for (loop_thread = 0; loop_thread < NUM_THREADS; loop_thread++) {
-			thread_args[loop_thread] = loop_thread;
-			pthread_create (&thread[loop_thread], NULL, 
-				(void*)&host_thread_fn_read, 
-				(void*)&thread_args[loop_thread]);
-		}
-
-		h4h_msg ("[main] wait for threads to end...");
-		for (loop_thread = 0; loop_thread < NUM_THREADS; loop_thread++) {
-			pthread_join (thread[loop_thread], NULL);
-		}
-
+		LBL_inf (_bdi);
 	} while (0);
 
 	h4h_msg ("[main] destroy h4h_drv");
