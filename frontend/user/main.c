@@ -62,7 +62,7 @@ THE SOFTWARE.
 /* main data structure */
 h4h_drv_info_t* _bdi = NULL;
 
-#define NUM_THREADS	20
+#define NUM_THREADS	1
 /*#define NUM_THREADS	20*/
 /*#define NUM_THREADS	10*/
 /*#define NUM_THREADS	1*/
@@ -74,28 +74,31 @@ void host_thread_fn_write (void *data)
 {
 	int i = 0, j = 0;
 	int offset = 0; /* sector (512B) */
-	int size = 8 * 82; /* 512B * 8 * 32 = 128 KB */
+	int size = 8 * 32; /* 512B * 8 * 32 = 128 KB */
+	int k;
 
-	for (i = 0; i < 155; i++) {
-		h4h_blkio_req_t* blkio_req = (h4h_blkio_req_t*)h4h_malloc (sizeof (h4h_blkio_req_t));
+	for (k = 0; k < 10; k++) {
+		for (i = 0; i < 656 * 5; i++) {
+			h4h_blkio_req_t* blkio_req = (h4h_blkio_req_t*)h4h_malloc (sizeof (h4h_blkio_req_t));
 
-		/* build blkio req */
-		blkio_req->bi_rw = REQTYPE_WRITE;
-		blkio_req->bi_offset = offset;
-		blkio_req->bi_size = size;
-		blkio_req->bi_bvec_cnt = size / 8;
-		for (j = 0; j < blkio_req->bi_bvec_cnt; j++) {
-			blkio_req->bi_bvec_ptr[j] = (uint8_t*)h4h_malloc (4096);
-			blkio_req->bi_bvec_ptr[j][0] = 0x0A;
-			blkio_req->bi_bvec_ptr[j][1] = 0x0B;
-			blkio_req->bi_bvec_ptr[j][2] = 0x0C;
+			/* build blkio req */
+			blkio_req->bi_rw = REQTYPE_WRITE;
+			blkio_req->bi_offset = offset;
+			blkio_req->bi_size = size;
+			blkio_req->bi_bvec_cnt = size / 8;
+			for (j = 0; j < blkio_req->bi_bvec_cnt; j++) {
+				blkio_req->bi_bvec_ptr[j] = (uint8_t*)h4h_malloc (4096);
+				blkio_req->bi_bvec_ptr[j][0] = 0x0A;
+				blkio_req->bi_bvec_ptr[j][1] = 0x0B;
+				blkio_req->bi_bvec_ptr[j][2] = 0x0C;
+			}
+	
+			/* send req to ftl */
+			_bdi->ptr_host_inf->make_req (_bdi, blkio_req);
+	
+			/* increase offset */
+			offset += size;
 		}
-
-		/* send req to ftl */
-		_bdi->ptr_host_inf->make_req (_bdi, blkio_req);
-
-		/* increase offset */
-		offset += size;
 	}
 
 	pthread_exit (0);
@@ -105,7 +108,7 @@ void host_thread_fn_read (void *data)
 {
 	int i = 0, j = 0;
 	int offset = 0; /* sector (512B) */
-	int size = 8 * 82; /* 512B * 8 * 32 = 128 KB */
+	int size = 8 * 32; /* 512B * 8 * 32 = 128 KB */
 
 	for (i = 0; i < 155; i++) {
 		h4h_blkio_req_t* blkio_req = (h4h_blkio_req_t*)h4h_malloc (sizeof (h4h_blkio_req_t));

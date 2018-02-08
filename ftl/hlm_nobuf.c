@@ -118,6 +118,11 @@ uint32_t __hlm_nobuf_make_rw_req (h4h_drv_info_t* bdi, h4h_hlm_req_t* hr)
 	{
 		size = hr->nr_llm_reqs;
 		phyaddrs = h4h_malloc (sizeof(h4h_phyaddr_t) * size);
+		if (phyaddrs == NULL)
+		{
+			h4h_error ("allocation failed");
+			return -1;
+		}
 
 		total_alloc_size = 0;
 		

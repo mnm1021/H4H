@@ -388,6 +388,23 @@ int32_t h4h_page_ftl_get_free_ppas (
 		if (p->spare_blk == NULL || p->spare_blk->offset == np->nr_pages_per_block)
 		{
 			p->spare_blk = p->ac_bab[curr_channel * np->nr_chips_per_channel + curr_chip];
+			while (p->spare_blk == NULL || p->spare_blk->offset == np->nr_pages_per_block)
+			{
+				/* reclaim for free block */
+				b = h4h_abm_get_free_block_prepare (p->bai, curr_channel, curr_chip);
+				if (b != NULL)
+				{
+					h4h_abm_get_free_block_commit (p->bai, b);
+					p->ac_bab[curr_channel * np->nr_chips_per_channel + curr_chip] = b;
+				}
+	
+				/* switch to new puid */
+				p->curr_puid = (p->curr_puid + 1) % p->nr_punits;
+				curr_channel = p->curr_puid % np->nr_channels;
+				curr_chip = p->curr_puid / np->nr_channels;
+	
+				p->spare_blk = p->ac_bab[curr_channel * np->nr_chips_per_channel + curr_chip];
+			}
 			p->curr_puid = (p->curr_puid + 1) % p->nr_punits;
 		}
 
@@ -400,6 +417,23 @@ int32_t h4h_page_ftl_get_free_ppas (
 	else
 	{
 		b = p->ac_bab[curr_channel * np->nr_chips_per_channel + curr_chip];
+		while (b == NULL || b->offset == np->nr_pages_per_block)
+		{
+			/* reclaim for free block */
+			b = h4h_abm_get_free_block_prepare (p->bai, curr_channel, curr_chip);
+			if (b != NULL)
+			{
+				h4h_abm_get_free_block_commit (p->bai, b);
+				p->ac_bab[curr_channel * np->nr_chips_per_channel + curr_chip] = b;
+			}
+
+			/* switch to new puid */
+			p->curr_puid = (p->curr_puid + 1) % p->nr_punits;
+			curr_channel = p->curr_puid % np->nr_channels;
+			curr_chip = p->curr_puid / np->nr_channels;
+
+			b = p->ac_bab[curr_channel * np->nr_chips_per_channel + curr_chip];
+		}
 		p->curr_puid = (p->curr_puid + 1) % p->nr_punits;
 	}
 
@@ -431,11 +465,11 @@ int32_t h4h_page_ftl_get_free_ppas (
 		{
 			h4h_abm_get_free_block_commit (p->bai, b);
 		}
-		else
-		{
-			h4h_error ("h4h_abm_get_free_block_prepare failed");
-			return -1;
-		}
+//		else
+//		{
+//			h4h_error ("h4h_abm_get_free_block_prepare failed");
+//			return -1;
+//		}
 
 		p->ac_bab[curr_channel * np->nr_chips_per_channel + curr_chip] = b;
 	}
