@@ -28,6 +28,7 @@ LIBFTL := libftl.a
 
 SRCS := \
 	main.c \
+	lbl.c \
 
 libftl: $(SRCS) $(DMLIB) $(LIBFTL)
 	$(CC) $(INCLUDES) $(CFLAGS) -o $@ $(SRCS) $(LIBS) $(LIBFTL) $(DMLIB)

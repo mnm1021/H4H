@@ -109,36 +109,36 @@ uint32_t __hlm_nobuf_make_rw_req (h4h_drv_info_t* bdi, h4h_hlm_req_t* hr)
 	h4h_llm_req_t* lr = NULL;
 	uint64_t i = 0, j = 0, sp_ofs;
 
-	h4h_phyaddr_t start_ppa;
-	h4h_phyaddr_t* phyaddrs = NULL;
-	int32_t size, alloc_size, total_alloc_size;
-
-	/* allocate request by sequential address if write */
-	if (h4h_is_write (hr->req_type))
-	{
-		size = hr->nr_llm_reqs;
-		phyaddrs = h4h_malloc (sizeof(h4h_phyaddr_t) * size);
-
-		total_alloc_size = 0;
-		
-		while (total_alloc_size < size)
-		{
-			alloc_size = ftl->get_free_ppas (bdi, 0, size - total_alloc_size, &start_ppa);
-			if (alloc_size < 0)
-			{
-				h4h_error ("'ftl->get_free_ppas' failed");
-				h4h_free (phyaddrs);
-				goto fail;
-			}
-
-			total_alloc_size += alloc_size;
-			for (; i < total_alloc_size; ++i) /* i not initialized to continuously alloc */
-			{
-				h4h_memcpy (&phyaddrs[i], &start_ppa, sizeof(h4h_phyaddr_t));
-				start_ppa.page_no += 1;
-			}
-		}
-	}
+//	h4h_phyaddr_t start_ppa;
+//	h4h_phyaddr_t* phyaddrs = NULL;
+//	int32_t size, alloc_size, total_alloc_size;
+//
+//	/* allocate request by sequential address if write */
+//	if (h4h_is_write (hr->req_type))
+//	{
+//		size = hr->nr_llm_reqs;
+//		phyaddrs = h4h_malloc (sizeof(h4h_phyaddr_t) * size);
+//
+//		total_alloc_size = 0;
+//		
+//		while (total_alloc_size < size)
+//		{
+//			alloc_size = ftl->get_free_ppas (bdi, 0, size - total_alloc_size, &start_ppa);
+//			if (alloc_size < 0)
+//			{
+//				h4h_error ("'ftl->get_free_ppas' failed");
+//				h4h_free (phyaddrs);
+//				goto fail;
+//			}
+//
+//			total_alloc_size += alloc_size;
+//			for (; i < total_alloc_size; ++i) /* i not initialized to continuously alloc */
+//			{
+//				h4h_memcpy (&phyaddrs[i], &start_ppa, sizeof(h4h_phyaddr_t));
+//				start_ppa.page_no += 1;
+//			}
+//		}
+//	}
 
 	/* perform mapping with the FTL */
 	h4h_hlm_for_each_llm_req (lr, hr, i) {
@@ -160,10 +160,14 @@ uint32_t __hlm_nobuf_make_rw_req (h4h_drv_info_t* bdi, h4h_hlm_req_t* hr)
 					goto fail;
 				}
 				*/
-				h4h_memcpy (&lr->phyaddr, &phyaddrs[i], sizeof(h4h_phyaddr_t));
-
-				if (ftl->map_lpa_to_ppa (bdi, &lr->logaddr, &lr->phyaddr) != 0) {
-					h4h_error ("`ftl->map_lpa_to_ppa' failed");
+//				h4h_memcpy (&lr->phyaddr, &phyaddrs[i], sizeof(h4h_phyaddr_t));
+//
+//				if (ftl->map_lpa_to_ppa (bdi, &lr->logaddr, &lr->phyaddr) != 0) {
+//					h4h_error ("`ftl->map_lpa_to_ppa' failed");
+//					goto fail;
+//				}
+				if (ftl->get_ppa (bdi, lr->logaddr.lpa[0], &lr->phyaddr, &sp_ofs) != 0) {
+					h4h_error ("'ftl->get_ppa' failed: invalid write");
 					goto fail;
 				}
 			} else {
@@ -222,8 +226,8 @@ uint32_t __hlm_nobuf_make_rw_req (h4h_drv_info_t* bdi, h4h_hlm_req_t* hr)
 
 	h4h_bug_on (hr->nr_llm_reqs != i);
 
-	if (phyaddrs != NULL)
-		h4h_free (phyaddrs);
+//	if (phyaddrs != NULL)
+//		h4h_free (phyaddrs);
 
 	return 0;
 
