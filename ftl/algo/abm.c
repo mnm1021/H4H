@@ -428,6 +428,9 @@ void h4h_abm_erase_block (
 			sizeof (babm_abm_subpage_t) * bai->np->nr_subpages_per_block
 		);
 	}
+
+	/* reset offset */
+	blk->offset = 0;
 }
 
 void h4h_abm_set_to_dirty_block (

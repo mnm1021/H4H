@@ -378,6 +378,21 @@ int32_t h4h_page_ftl_get_free_ppas (
 	/* get active block */
 	b = p->ac_bab[curr_channel * np->nr_chips_per_channel + curr_chip];
 
+	while (b == NULL)
+	{
+		b = h4h_abm_get_free_block_prepare (p->bai, curr_channel, curr_chip);
+		if (b != NULL)
+		{
+			h4h_abm_get_free_block_commit (p->bai, b);
+			p->ac_bab[curr_channel * np->nr_chips_per_channel + curr_chip] = b;
+		}
+
+		p->curr_puid = (p->curr_puid + 1) % p->nr_punits;
+		curr_channel = p->curr_puid % np->nr_channels;
+		curr_chip = p->curr_puid / np->nr_channels;
+		b = p->ac_bab[curr_channel * np->nr_chips_per_channel + curr_chip];
+	}
+
 	/* get physical offset of the active blocks */
 	start_ppa->channel_no = b->channel_no;
 	start_ppa->chip_no = b->chip_no;
@@ -406,11 +421,11 @@ int32_t h4h_page_ftl_get_free_ppas (
 		{
 			h4h_abm_get_free_block_commit (p->bai, b);
 		}
-		else
-		{
-			h4h_error ("h4h_abm_get_free_block_prepare failed");
-			return -1;
-		}
+//		else
+//		{
+//			h4h_error ("h4h_abm_get_free_block_prepare failed");
+//			return -1;
+//		}
 
 		p->ac_bab[curr_channel * np->nr_chips_per_channel + curr_chip] = b;
 

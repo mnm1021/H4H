@@ -34,6 +34,7 @@ THE SOFTWARE.
 #include <stdint.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <string.h>
 
 #endif
 
@@ -62,57 +63,161 @@ THE SOFTWARE.
 /* main data structure */
 h4h_drv_info_t* _bdi = NULL;
 
-#define NUM_THREADS	20
+#define NUM_THREADS	1
+
 /*#define NUM_THREADS	20*/
 /*#define NUM_THREADS	10*/
-/*#define NUM_THREADS	1*/
+/*#define NUM_THREADS	2*/
 
 #include "h4h_drv.h"
 #include "uatomic64.h"
 
+#define ALBSIZE 82
+#define FLBSIZE 35
+
+//int valid[10][20992];
+//int valid[10][82];
+int allocated_size = 500;	// default : 500MB
+int num;
+int alb_inf_on = 0; 		// app logical block information display 0:off / 1:on
+
 void host_thread_fn_write (void *data) 
+//void host_thread_fn_write () 
 {
 	int i = 0, j = 0;
 	int offset = 0; /* sector (512B) */
-	int size = 8 * 82; /* 512B * 8 * 32 = 128 KB */
+	//int offset = 4800; /* sector (512B) */
+	int size = 8 * 32; /* 512B * 8 * 32 = 128 KB */
+	//int size = 8; /* 512B * 8 = 4 KB */
+	int k;
+	//for (k = 0; k < 10; k++) {
+		for (i = 0; i < 656 * 27; i++) {
+	
+			h4h_blkio_req_t* blkio_req = (h4h_blkio_req_t*)h4h_malloc (sizeof (h4h_blkio_req_t));
 
-	for (i = 0; i < 155; i++) {
-		h4h_blkio_req_t* blkio_req = (h4h_blkio_req_t*)h4h_malloc (sizeof (h4h_blkio_req_t));
+			/* build blkio req */
+			blkio_req->bi_rw = REQTYPE_WRITE;
+			blkio_req->bi_offset = offset;
+			//printf("offset : %d\n", offset);
+			blkio_req->bi_size = size;
+			blkio_req->bi_bvec_cnt = size / 8;
+			for (j = 0; j < blkio_req->bi_bvec_cnt; j++) {
+				blkio_req->bi_bvec_ptr[j] = (uint8_t*)h4h_malloc (4096);
+				blkio_req->bi_bvec_ptr[j][0] = 0x0A;
+				blkio_req->bi_bvec_ptr[j][1] = 0x0B;
+				blkio_req->bi_bvec_ptr[j][2] = 0x0C;
+			}
+			/* send req to ftl */
+			_bdi->ptr_host_inf->make_req (_bdi, blkio_req);
 
-		/* build blkio req */
-		blkio_req->bi_rw = REQTYPE_WRITE;
-		blkio_req->bi_offset = offset;
-		blkio_req->bi_size = size;
-		blkio_req->bi_bvec_cnt = size / 8;
-		for (j = 0; j < blkio_req->bi_bvec_cnt; j++) {
-			blkio_req->bi_bvec_ptr[j] = (uint8_t*)h4h_malloc (4096);
-			blkio_req->bi_bvec_ptr[j][0] = 0x0A;
-			blkio_req->bi_bvec_ptr[j][1] = 0x0B;
-			blkio_req->bi_bvec_ptr[j][2] = 0x0C;
+			/* increase offset */
+			offset += size;
+			//printf("offset : %d\n", offset);
+	
 		}
+	//}
+}
 
-		/* send req to ftl */
-		_bdi->ptr_host_inf->make_req (_bdi, blkio_req);
+void host_thread_fn_trim (void *data) 
+//void host_thread_fn_write () 
+{
+	int i = 0, j = 0;
+	int k = 0;
+	int size = 8 * 32; /* 512B * 8 * 32 = 128 KB */
+	//int size = 8; /* 512B * 8 = 4 KB */
+	int offset = 0; /* sector (512B) */
+	//int offset = 0 + 656 * size * k; /* sector (512B) */
+	
+	for (k = 0; k < 27; k= k+1) {
+		//if(k == 12) k = k+1;
+		if(k % 2 == 1) continue;
+		//if(k == 13) k = k-1;
+		for (i = 0; i < 656; i++) {
+	
+			h4h_blkio_req_t* blkio_req = (h4h_blkio_req_t*)h4h_malloc (sizeof (h4h_blkio_req_t));
 
-		/* increase offset */
-		offset += size;
+			/* build blkio req */
+			blkio_req->bi_rw = REQTYPE_TRIM;
+			blkio_req->bi_offset = offset;			
+			//printf("offset : %d\n", offset);
+			blkio_req->bi_size = size;
+			blkio_req->bi_bvec_cnt = size / 8;
+			for (j = 0; j < blkio_req->bi_bvec_cnt; j++) {
+				blkio_req->bi_bvec_ptr[j] = (uint8_t*)h4h_malloc (4096);
+				blkio_req->bi_bvec_ptr[j][0] = 0x0A;
+				blkio_req->bi_bvec_ptr[j][1] = 0x0B;
+				blkio_req->bi_bvec_ptr[j][2] = 0x0C;
+			}
+			/* send req to ftl */
+			_bdi->ptr_host_inf->make_req (_bdi, blkio_req);
+
+			/* increase offset */
+			offset += size;
+			//printf("offset : %d\n", offset);
+	
+		}
 	}
+}
 
-	pthread_exit (0);
+void host_thread_fn_write2 (void *data) 
+//void host_thread_fn_write () 
+{
+	int i = 0, j = 0;
+	int k = 0;
+	int size = 8 * 32; /* 512B * 8 * 32 = 128 KB */
+	//int size = 8; /* 512B * 8 = 4 KB */
+	int offset = 0; /* sector (512B) */
+	//int offset = 0 + 656 * size * k; /* sector (512B) */
+	
+	
+	for (k = 0; k < 27; k= k+1) {
+		//if(k == 12) k = k+1;
+		if(k % 2 == 1) continue;
+		//if(k == 13) k = k-1;
+		//if(k == 2 || k == 5 || k == 8 || k == 11) continue;
+		for (i = 0; i < 656; i++) {
+	
+			h4h_blkio_req_t* blkio_req = (h4h_blkio_req_t*)h4h_malloc (sizeof (h4h_blkio_req_t));
+
+			/* build blkio req */
+			blkio_req->bi_rw = REQTYPE_WRITE;
+			blkio_req->bi_offset = offset;
+			
+			//printf("offset : %d\n", offset);
+			blkio_req->bi_size = size;
+			blkio_req->bi_bvec_cnt = size / 8;
+			for (j = 0; j < blkio_req->bi_bvec_cnt; j++) {
+				blkio_req->bi_bvec_ptr[j] = (uint8_t*)h4h_malloc (4096);
+				blkio_req->bi_bvec_ptr[j][0] = 0x0A;
+				blkio_req->bi_bvec_ptr[j][1] = 0x0B;
+				blkio_req->bi_bvec_ptr[j][2] = 0x0C;
+			}
+			/* send req to ftl */
+			_bdi->ptr_host_inf->make_req (_bdi, blkio_req);
+
+			/* increase offset */
+			offset += size;
+			//printf("offset : %d\n", offset);
+	
+		}
+	}
 }
 
 void host_thread_fn_read (void *data) 
 {
 	int i = 0, j = 0;
 	int offset = 0; /* sector (512B) */
-	int size = 8 * 82; /* 512B * 8 * 32 = 128 KB */
-
-	for (i = 0; i < 155; i++) {
+	//int size = 8 * 32; /* 512B * 8 * 32 = 128 KB */
+	int size = 8; /* 512B * 8= 4 KB */
+	
+	//for (i = 0; i < 10000; i++) {
+	for (i = 0; i < 500; i++) {
 		h4h_blkio_req_t* blkio_req = (h4h_blkio_req_t*)h4h_malloc (sizeof (h4h_blkio_req_t));
 
 		/* build blkio req */
 		blkio_req->bi_rw = REQTYPE_READ;
 		blkio_req->bi_offset = offset;
+		printf("offset : %d\n", offset);
 		blkio_req->bi_size = size;
 		blkio_req->bi_bvec_cnt = size / 8;
 		for (j = 0; j < blkio_req->bi_bvec_cnt; j++) {
@@ -158,7 +263,11 @@ int main (int argc, char** argv)
 	h4h_drv_setup (_bdi, &_userio_inf, h4h_dm_get_inf (_bdi));
 	h4h_drv_run (_bdi);
 
-	do {
+	do {	
+
+//		host_thread_fn_write();
+//		LBL_inf();
+
 		h4h_msg ("[main] start writes");
 		for (loop_thread = 0; loop_thread < NUM_THREADS; loop_thread++) {
 			thread_args[loop_thread] = loop_thread;
@@ -172,6 +281,38 @@ int main (int argc, char** argv)
 			pthread_join (thread[loop_thread], NULL);
 		}
 
+		int cnt = 0;
+		do {
+		h4h_msg ("[main] start trims");
+		for (loop_thread = 0; loop_thread < NUM_THREADS; loop_thread++) {
+			thread_args[loop_thread] = loop_thread;
+			pthread_create (&thread[loop_thread], NULL, 
+				(void*)&host_thread_fn_trim, 
+				(void*)&thread_args[loop_thread]);
+		}
+
+		h4h_msg ("[main] wait for threads to end...");
+		for (loop_thread = 0; loop_thread < NUM_THREADS; loop_thread++) {
+			pthread_join (thread[loop_thread], NULL);
+		}
+
+		h4h_msg ("[main] start writes");
+		for (loop_thread = 0; loop_thread < NUM_THREADS; loop_thread++) {
+			thread_args[loop_thread] = loop_thread;
+			pthread_create (&thread[loop_thread], NULL, 
+				(void*)&host_thread_fn_write2, 
+				(void*)&thread_args[loop_thread]);
+		}
+
+		h4h_msg ("[main] wait for threads to end...");
+		for (loop_thread = 0; loop_thread < NUM_THREADS; loop_thread++) {
+			pthread_join (thread[loop_thread], NULL);		
+		}
+		cnt++;
+		} while ( cnt < 1);
+
+		//LBL_inf();
+/*
 		h4h_msg ("[main] start reads");
 		for (loop_thread = 0; loop_thread < NUM_THREADS; loop_thread++) {
 			thread_args[loop_thread] = loop_thread;
@@ -184,6 +325,9 @@ int main (int argc, char** argv)
 		for (loop_thread = 0; loop_thread < NUM_THREADS; loop_thread++) {
 			pthread_join (thread[loop_thread], NULL);
 		}
+
+*/		
+
 
 	} while (0);
 
