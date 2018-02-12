@@ -372,7 +372,7 @@ void h4h_abm_erase_block (
 
 	/* check some error cases */
 	__h4h_abm_check_status (bai);
-
+	
 	/* change # of blks */
 	if (blk->status == H4H_ABM_BLK_CLEAN) {
 		h4h_bug_on (bai->nr_clean_blks == 0);

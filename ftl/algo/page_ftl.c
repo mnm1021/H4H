@@ -870,7 +870,9 @@ uint32_t h4h_page_ftl_do_gc (h4h_drv_info_t* bdi, int64_t lpa)
 			}
 		}
 	}
-	if (nr_gc_blks < nr_punits) {
+
+//	if (nr_gc_blks < nr_punits) {
+	if (nr_gc_blks == 0) {
 		/* TODO: we need to implement a load balancing feature to avoid this */
 		/*h4h_warning ("TODO: this warning will be removed with load-balancing");*/
 		return 0;
@@ -932,7 +934,7 @@ uint32_t h4h_page_ftl_do_gc (h4h_drv_info_t* bdi, int64_t lpa)
 	 * TODO: it might be possible to further optimize this */
 	bdi->ptr_llm_inf->flush (bdi);
 
-	if (nr_llm_reqs == 0) 
+	if (nr_llm_reqs == 0)
 		goto erase_blks;
 
 	/* send read reqs to llm */
@@ -1087,7 +1089,8 @@ erase_blks:
 
 	/* send erase reqs to llm */
 	hlm_gc->req_type = REQTYPE_GC_ERASE;
-	hlm_gc->nr_llm_reqs = p->nr_punits;
+//	hlm_gc->nr_llm_reqs = p->nr_punits;
+	hlm_gc->nr_llm_reqs = nr_gc_blks;
 	atomic64_set (&hlm_gc->nr_llm_reqs_done, 0);
 	h4h_sema_lock (&hlm_gc->done);
 	for (i = 0; i < nr_gc_blks; i++) {
