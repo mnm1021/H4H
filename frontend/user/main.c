@@ -170,7 +170,7 @@ void host_thread_fn_write2 (void *data)
 	//int offset = 0 + 656 * size * k; /* sector (512B) */
 	
 	
-	for (k = 0; k < 27; k= k+1) {
+	for (k = 0; k < 25; k= k+1) {
 		//if(k == 12) k = k+1;
 		if(k % 2 == 1) continue;
 		//if(k == 13) k = k-1;

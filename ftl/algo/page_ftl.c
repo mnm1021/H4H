@@ -370,6 +370,9 @@ int32_t h4h_page_ftl_get_free_ppas (
 	uint64_t curr_channel;
 	uint64_t curr_chip;
 	int32_t ret_size;
+	int start_puid;
+
+	start_puid = p->curr_puid;
 
 	/* get the channel & chip numbers */
 	curr_channel = p->curr_puid % np->nr_channels;
@@ -380,17 +383,27 @@ int32_t h4h_page_ftl_get_free_ppas (
 
 	while (b == NULL)
 	{
+		/* search next block for current puid */
 		b = h4h_abm_get_free_block_prepare (p->bai, curr_channel, curr_chip);
 		if (b != NULL)
 		{
 			h4h_abm_get_free_block_commit (p->bai, b);
 			p->ac_bab[curr_channel * np->nr_chips_per_channel + curr_chip] = b;
+			break;
 		}
 
+		/* switch to next puid */
 		p->curr_puid = (p->curr_puid + 1) % p->nr_punits;
 		curr_channel = p->curr_puid % np->nr_channels;
 		curr_chip = p->curr_puid / np->nr_channels;
 		b = p->ac_bab[curr_channel * np->nr_chips_per_channel + curr_chip];
+
+		if (p->curr_puid == start_puid)
+		{
+			h4h_msg ("%d total blks, %d free blks, %d dirty blks", p->bai->nr_total_blks, p->bai->nr_free_blks, p->bai->nr_dirty_blks);
+			h4h_msg ("no block is available");
+			return -1;
+		}
 	}
 
 	/* get physical offset of the active blocks */
@@ -876,7 +889,7 @@ uint32_t h4h_page_ftl_do_gc (h4h_drv_info_t* bdi, int64_t lpa)
 	for (i = 0, nr_llm_reqs = 0; i < nr_gc_blks; i++) {
 		h4h_abm_block_t* b = p->gc_bab[i];
 		if (b == NULL)
-			break;
+			continue;
 		for (j = 0; j < np->nr_pages_per_block; j++) {
 			h4h_llm_req_t* r = &hlm_gc->llm_reqs[nr_llm_reqs];
 			int has_valid = 0;
@@ -988,6 +1001,29 @@ uint32_t h4h_page_ftl_do_gc (h4h_drv_info_t* bdi, int64_t lpa)
 
 	nr_llm_reqs = hlm_gc_w->nr_llm_reqs;
 
+	/* get_free_ppas for GC writes */
+	h4h_phyaddr_t* phyaddrs = NULL;
+	h4h_phyaddr_t start_ppa;
+	int32_t alloc_size, total_size = 0;
+	phyaddrs = h4h_malloc (sizeof(h4h_phyaddr_t) * nr_llm_reqs);
+	i = 0;
+	while (total_size < nr_llm_reqs)
+	{
+		alloc_size = h4h_page_ftl_get_free_ppas (bdi, 0, nr_llm_reqs - total_size, &start_ppa);
+		if (alloc_size < 0)
+		{
+			h4h_error ("'ftl->get_free_ppas' failed while GC-ing");
+			h4h_free (phyaddrs);
+			return -1;
+		}
+		total_size += alloc_size;
+		for (; i < total_size; ++i)
+		{
+			h4h_memcpy (&phyaddrs[i], &start_ppa, sizeof(h4h_phyaddr_t));
+			start_ppa.page_no += 1;
+		}
+	}
+
 	/* build hlm_req_gc for writes */
 	for (i = 0; i < nr_llm_reqs; i++) {
 		h4h_llm_req_t* r = &hlm_gc_w->llm_reqs[i];
@@ -1004,15 +1040,17 @@ uint32_t h4h_page_ftl_do_gc (h4h_drv_info_t* bdi, int64_t lpa)
 			}
 		}
 		r->ptr_hlm_req = (void*)hlm_gc_w;
-		if (h4h_page_ftl_get_free_ppa (bdi, 0, &r->phyaddr) != 0) {
-			h4h_error ("h4h_page_ftl_get_free_ppa failed");
-			h4h_bug_on (1);
-		}
+//		if (h4h_page_ftl_get_free_ppa (bdi, 0, &r->phyaddr) != 0) {
+//			h4h_error ("h4h_page_ftl_get_free_ppa failed");
+//			h4h_bug_on (1);
+//		}
+		h4h_memcpy (&r->phyaddr, &phyaddrs[i], sizeof(h4h_phyaddr_t));
 		if (h4h_page_ftl_map_lpa_to_ppa (bdi, &r->logaddr, &r->phyaddr) != 0) {
 			h4h_error ("h4h_page_ftl_map_lpa_to_ppa failed");
 			h4h_bug_on (1);
 		}
 	}
+	h4h_free (phyaddrs);
 
 	/* send write reqs to llm */
 	hlm_gc_w->req_type = REQTYPE_GC_WRITE;
@@ -1033,6 +1071,8 @@ uint32_t h4h_page_ftl_do_gc (h4h_drv_info_t* bdi, int64_t lpa)
 erase_blks:
 	for (i = 0; i < nr_gc_blks; i++) {
 		h4h_abm_block_t* b = p->gc_bab[i];
+		if (b == NULL)
+			continue;
 		h4h_llm_req_t* r = &hlm_gc->llm_reqs[i];
 		r->req_type = REQTYPE_GC_ERASE;
 		r->logaddr.lpa[0] = -1ULL; /* lpa is not available now */
@@ -1051,6 +1091,8 @@ erase_blks:
 	atomic64_set (&hlm_gc->nr_llm_reqs_done, 0);
 	h4h_sema_lock (&hlm_gc->done);
 	for (i = 0; i < nr_gc_blks; i++) {
+		if (p->gc_bab[i] == NULL)
+			continue;
 		if ((bdi->ptr_llm_inf->make_req (bdi, &hlm_gc->llm_reqs[i])) != 0) {
 			h4h_error ("llm_make_req failed");
 			h4h_bug_on (1);
@@ -1063,6 +1105,8 @@ erase_blks:
 	for (i = 0; i < nr_gc_blks; i++) {
 		uint8_t ret = 0;
 		h4h_abm_block_t* b = p->gc_bab[i];
+		if (b == NULL)
+			continue;
 		if (hlm_gc->llm_reqs[i].ret != 0) 
 			ret = 1;	/* bad block */
 		h4h_abm_erase_block (p->bai, b->channel_no, b->chip_no, b->block_no, ret);
