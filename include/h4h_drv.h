@@ -136,7 +136,7 @@ typedef struct {
 #define H4H_MAX_PAGES 1
 
 /* a h4h blockio request */
-#define H4H_BLKIO_MAX_VECS 512
+#define H4H_BLKIO_MAX_VECS 20480
 
 typedef struct {
 	uint64_t bi_rw; /* REQTYPE_WRITE or REQTYPE_READ */

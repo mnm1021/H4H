@@ -87,11 +87,12 @@ void host_thread_fn_write (void *data)
 	int i = 0, j = 0;
 	int offset = 0; /* sector (512B) */
 	//int offset = 4800; /* sector (512B) */
-	int size = 8 * 32; /* 512B * 8 * 32 = 128 KB */
+//	int size = 8 * 32; /* 512B * 8 * 32 = 128 KB */
+	int size = 163840; /* 80MB */
 	//int size = 8; /* 512B * 8 = 4 KB */
 	int k;
 	//for (k = 0; k < 10; k++) {
-		for (i = 0; i < 656 * 27; i++) {
+		for (i = 0; i < 27; i++) {
 	
 			h4h_blkio_req_t* blkio_req = (h4h_blkio_req_t*)h4h_malloc (sizeof (h4h_blkio_req_t));
 
@@ -111,7 +112,7 @@ void host_thread_fn_write (void *data)
 			_bdi->ptr_host_inf->make_req (_bdi, blkio_req);
 
 			/* increase offset */
-			offset += size;
+//			offset += size;
 			//printf("offset : %d\n", offset);
 	
 		}
@@ -123,7 +124,8 @@ void host_thread_fn_trim (void *data)
 {
 	int i = 0, j = 0;
 	int k = 0;
-	int size = 8 * 32; /* 512B * 8 * 32 = 128 KB */
+//	int size = 8 * 32; /* 512B * 8 * 32 = 128 KB */
+	int size = 163840; /* 80MB */
 	//int size = 8; /* 512B * 8 = 4 KB */
 	int offset = 0; /* sector (512B) */
 	//int offset = 0 + 656 * size * k; /* sector (512B) */
@@ -132,7 +134,7 @@ void host_thread_fn_trim (void *data)
 		//if(k == 12) k = k+1;
 		if(k % 2 == 1) continue;
 		//if(k == 13) k = k-1;
-		for (i = 0; i < 656; i++) {
+//		for (i = 0; i < 656; i++) {
 	
 			h4h_blkio_req_t* blkio_req = (h4h_blkio_req_t*)h4h_malloc (sizeof (h4h_blkio_req_t));
 
@@ -152,10 +154,10 @@ void host_thread_fn_trim (void *data)
 			_bdi->ptr_host_inf->make_req (_bdi, blkio_req);
 
 			/* increase offset */
-			offset += size;
+//			offset += size;
 			//printf("offset : %d\n", offset);
 	
-		}
+//		}
 	}
 }
 
@@ -164,7 +166,8 @@ void host_thread_fn_write2 (void *data)
 {
 	int i = 0, j = 0;
 	int k = 0;
-	int size = 8 * 32; /* 512B * 8 * 32 = 128 KB */
+//	int size = 8 * 32; /* 512B * 8 * 32 = 128 KB */
+	int size = 163840; /* 80MB */
 	//int size = 8; /* 512B * 8 = 4 KB */
 	int offset = 0; /* sector (512B) */
 	//int offset = 0 + 656 * size * k; /* sector (512B) */
@@ -175,7 +178,7 @@ void host_thread_fn_write2 (void *data)
 		if(k % 2 == 1) continue;
 		//if(k == 13) k = k-1;
 		//if(k == 2 || k == 5 || k == 8 || k == 11) continue;
-		for (i = 0; i < 650; i++) {
+//		for (i = 0; i < 650; i++) {
 	
 			h4h_blkio_req_t* blkio_req = (h4h_blkio_req_t*)h4h_malloc (sizeof (h4h_blkio_req_t));
 
@@ -196,10 +199,10 @@ void host_thread_fn_write2 (void *data)
 			_bdi->ptr_host_inf->make_req (_bdi, blkio_req);
 
 			/* increase offset */
-			offset += size;
+//			offset += size;
 			//printf("offset : %d\n", offset);
 	
-		}
+//		}
 	}
 }
 
