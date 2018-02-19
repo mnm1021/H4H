@@ -175,7 +175,7 @@ void host_thread_fn_write2 (void *data)
 		if(k % 2 == 1) continue;
 		//if(k == 13) k = k-1;
 		//if(k == 2 || k == 5 || k == 8 || k == 11) continue;
-		for (i = 0; i < 656; i++) {
+		for (i = 0; i < 650; i++) {
 	
 			h4h_blkio_req_t* blkio_req = (h4h_blkio_req_t*)h4h_malloc (sizeof (h4h_blkio_req_t));
 
