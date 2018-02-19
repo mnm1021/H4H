@@ -388,7 +388,7 @@ int32_t h4h_page_ftl_get_free_ppas (
 	if (size < np->nr_pages_per_block)
 	{
 		/* get new spare block if NULL of full */
-		if (p->spare_blk == NULL)
+		if (p->spare_blk == NULL || p->spare_blk->offset == np->nr_pages_per_block)
 		{
 			p->spare_blk = p->ac_bab[curr_channel * np->nr_chips_per_channel + curr_chip];
 			while (p->spare_blk == NULL)
@@ -489,6 +489,15 @@ int32_t h4h_page_ftl_get_free_ppas (
 //		}
 
 		p->ac_bab[curr_channel * np->nr_chips_per_channel + curr_chip] = b;
+
+		p->curr_puid = (p->curr_puid + 1) % p->nr_punits;
+
+		if (size < np->nr_pages_per_block)
+		{
+			curr_channel = p->curr_puid % np->nr_channels;
+			curr_chip = p->curr_puid / np->nr_channels;
+			p->spare_blk = p->ac_bab[curr_channel * np->nr_chips_per_channel + curr_chip];
+		}
 	}
 
 	return ret_size;
