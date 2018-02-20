@@ -112,7 +112,7 @@ void host_thread_fn_write (void *data)
 			_bdi->ptr_host_inf->make_req (_bdi, blkio_req);
 
 			/* increase offset */
-//			offset += size;
+			offset += size;
 			//printf("offset : %d\n", offset);
 	
 		}
@@ -154,7 +154,7 @@ void host_thread_fn_trim (void *data)
 			_bdi->ptr_host_inf->make_req (_bdi, blkio_req);
 
 			/* increase offset */
-//			offset += size;
+			offset += size;
 			//printf("offset : %d\n", offset);
 	
 //		}
@@ -199,7 +199,7 @@ void host_thread_fn_write2 (void *data)
 			_bdi->ptr_host_inf->make_req (_bdi, blkio_req);
 
 			/* increase offset */
-//			offset += size;
+			offset += size;
 			//printf("offset : %d\n", offset);
 	
 //		}
