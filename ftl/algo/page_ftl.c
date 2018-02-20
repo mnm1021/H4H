@@ -377,6 +377,7 @@ int32_t h4h_page_ftl_get_free_ppas (
 	uint64_t curr_chip;
 	int32_t ret_size;
 	int start_puid;
+	int retry = 1;
 
 	start_puid = p->curr_puid;
 
@@ -410,6 +411,11 @@ int32_t h4h_page_ftl_get_free_ppas (
 
 				if (p->curr_puid == start_puid)
 				{
+					if (p->bai->nr_free_blks + p->bai->nr_dirty_blks > 1)
+					{
+						p->curr_puid = (p->curr_puid + 1) % p->nr_punits;
+						continue;
+					}
 					h4h_msg ("%d totalblks, %d free blks, %d dirty blks", p->bai->nr_total_blks, p->bai->nr_free_blks, p->bai->nr_dirty_blks);
 					h4h_msg ("no block is available");
 					return -1;
@@ -446,6 +452,11 @@ int32_t h4h_page_ftl_get_free_ppas (
 
 			if (p->curr_puid == start_puid)
 			{
+				if (p->bai->nr_free_blks + p->bai->nr_dirty_blks > 1)
+				{
+					p->curr_puid = (p->curr_puid + 1) % p->nr_punits;
+					continue;
+				}
 				h4h_msg ("%d totalblks, %d free blks, %d dirty blks", p->bai->nr_total_blks, p->bai->nr_free_blks, p->bai->nr_dirty_blks);
 				h4h_msg ("no block is available");
 				return -1;
@@ -646,7 +657,7 @@ uint8_t h4h_page_ftl_is_gc_needed (h4h_drv_info_t* bdi, int64_t lpa)
 	uint64_t nr_free_blks = h4h_abm_get_nr_free_blocks (p->bai);
 
 	/* invoke gc when remaining free blocks are less than 1% of total blocks */
-	if ((nr_free_blks * 100 / nr_total_blks) <= 2) {
+	if ((nr_free_blks * 100 / nr_total_blks) <= 20) {
 		return 1;
 	}
 
