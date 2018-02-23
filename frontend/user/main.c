@@ -112,7 +112,7 @@ void host_thread_fn_write (void *data)
 			_bdi->ptr_host_inf->make_req (_bdi, blkio_req);
 
 			/* increase offset */
-			offset += size;
+//			offset += size;
 			//printf("offset : %d\n", offset);
 	
 		}
@@ -132,7 +132,7 @@ void host_thread_fn_trim (void *data)
 	
 	for (k = 0; k < 112; k= k+1) {
 		//if(k == 12) k = k+1;
-		if(k % 2 == 1) continue;
+		if(k % 3 == 1) {
 		//if(k == 13) k = k-1;
 //		for (i = 0; i < 656; i++) {
 	
@@ -157,7 +157,7 @@ void host_thread_fn_trim (void *data)
 			offset += size;
 			//printf("offset : %d\n", offset);
 	
-//		}
+		}
 	}
 }
 
@@ -175,7 +175,7 @@ void host_thread_fn_write2 (void *data)
 	
 	for (k = 0; k < 112; k= k+1) {
 		//if(k == 12) k = k+1;
-		if(k % 2 == 1) continue;
+		if(k % 3 == 1) {
 		//if(k == 13) k = k-1;
 		//if(k == 2 || k == 5 || k == 8 || k == 11) continue;
 //		for (i = 0; i < 650; i++) {
@@ -202,7 +202,7 @@ void host_thread_fn_write2 (void *data)
 			offset += size;
 			//printf("offset : %d\n", offset);
 	
-//		}
+		}
 	}
 }
 
@@ -312,7 +312,7 @@ int main (int argc, char** argv)
 			pthread_join (thread[loop_thread], NULL);		
 		}
 		cnt++;
-		} while ( cnt < 1);
+		} while ( cnt < 3);
 
 		//LBL_inf();
 /*
