@@ -371,6 +371,7 @@ int32_t h4h_page_ftl_get_free_ppas (
 	uint64_t curr_chip;
 	int32_t ret_size;
 	int start_puid;
+	int retry = 1;
 
 	start_puid = p->curr_puid;
 
@@ -400,6 +401,11 @@ int32_t h4h_page_ftl_get_free_ppas (
 
 		if (p->curr_puid == start_puid)
 		{
+			if (retry)
+			{
+				retry = 0;
+				continue;
+			}
 			h4h_msg ("[get_free_ppas] %d total blks, %d free blks, %d dirty blks", p->bai->nr_total_blks, p->bai->nr_free_blks, p->bai->nr_dirty_blks);
 			h4h_msg ("[get_free_ppas] no block is available");
 			return -1;
