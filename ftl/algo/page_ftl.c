@@ -400,8 +400,8 @@ int32_t h4h_page_ftl_get_free_ppas (
 
 		if (p->curr_puid == start_puid)
 		{
-			h4h_msg ("%d total blks, %d free blks, %d dirty blks", p->bai->nr_total_blks, p->bai->nr_free_blks, p->bai->nr_dirty_blks);
-			h4h_msg ("no block is available");
+			h4h_msg ("[get_free_ppas] %d total blks, %d free blks, %d dirty blks", p->bai->nr_total_blks, p->bai->nr_free_blks, p->bai->nr_dirty_blks);
+			h4h_msg ("[get_free_ppas] no block is available");
 			return -1;
 		}
 	}
@@ -1026,6 +1026,7 @@ uint32_t h4h_page_ftl_do_gc (h4h_drv_info_t* bdi, int64_t lpa)
 			h4h_free (phyaddrs);
 
 			/* no free space, so just erase blocks only which are full of invalid pages */
+			h4h_msg ("[do_gc] no free space for GC copy, just erasing fully-lnvalid blocks");
 			j = 0;
 			for (i = 0; i < nr_gc_blks; ++i)
 			{
