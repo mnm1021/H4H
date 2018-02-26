@@ -659,7 +659,7 @@ h4h_abm_block_t* __h4h_page_ftl_victim_selection_greedy (
 			v = b;
 			continue;
 		}
-		if (a->nr_invalid_subpages > v->nr_invalid_subpages)
+		if (b->nr_invalid_subpages > v->nr_invalid_subpages)
 			v = b;
 	}
 
@@ -1005,18 +1005,39 @@ uint32_t h4h_page_ftl_do_gc (h4h_drv_info_t* bdi, int64_t lpa)
 
 	/* get_free_ppas for GC writes */
 	h4h_phyaddr_t* phyaddrs = NULL;
-	h4h_phyaddr_t start_ppa;
+	h4h_phyaddr_t start_ppa, reset_ppa;
+	h4h_abm_block_t* reset_block;
 	int32_t alloc_size, total_size = 0;
 	phyaddrs = h4h_malloc (sizeof(h4h_phyaddr_t) * nr_llm_reqs);
 	i = 0;
+
 	while (total_size < nr_llm_reqs)
 	{
 		alloc_size = h4h_page_ftl_get_free_ppas (bdi, 0, nr_llm_reqs - total_size, &start_ppa);
 		if (alloc_size < 0)
 		{
-			h4h_error ("'ftl->get_free_ppas' failed while GC-ing");
+			/* erase previous block offset */
+			for (j = 0; j < i; ++j)
+			{
+				reset_ppa = phyaddrs[j];
+				reset_block = h4h_abm_get_block (p->bai, reset_ppa.channel_no, reset_ppa.chip_no, reset_ppa.block_no);
+				reset_block->offset -= 1;
+			}
 			h4h_free (phyaddrs);
-			return -1;
+
+			/* no free space, so just erase blocks only which are full of invalid pages */
+			j = 0;
+			for (i = 0; i < nr_gc_blks; ++i)
+			{
+				if (p->gc_bab[i]->nr_invalid_subpages != np->nr_subpages_per_block)
+				{
+					p->gc_bab[i] = NULL;
+					++j;
+				}
+			}
+			nr_gc_blks -= j;
+
+			goto erase_blks;
 		}
 		total_size += alloc_size;
 		for (; i < total_size; ++i)
@@ -1071,7 +1092,7 @@ uint32_t h4h_page_ftl_do_gc (h4h_drv_info_t* bdi, int64_t lpa)
 
 	/* erase blocks */
 erase_blks:
-	for (i = 0; i < nr_gc_blks; i++) {
+	for (i = 0; i < nr_punits; i++) {
 		h4h_abm_block_t* b = p->gc_bab[i];
 		if (b == NULL)
 			continue;
@@ -1093,7 +1114,7 @@ erase_blks:
 	hlm_gc->nr_llm_reqs = nr_gc_blks;
 	atomic64_set (&hlm_gc->nr_llm_reqs_done, 0);
 	h4h_sema_lock (&hlm_gc->done);
-	for (i = 0; i < nr_gc_blks; i++) {
+	for (i = 0; i < nr_punits; i++) {
 		if (p->gc_bab[i] == NULL)
 			continue;
 		if ((bdi->ptr_llm_inf->make_req (bdi, &hlm_gc->llm_reqs[i])) != 0) {
@@ -1105,7 +1126,7 @@ erase_blks:
 	h4h_sema_unlock (&hlm_gc->done);
 
 	/* FIXME: what happens if block erasure fails */
-	for (i = 0; i < nr_gc_blks; i++) {
+	for (i = 0; i < nr_punits; i++) {
 		uint8_t ret = 0;
 		h4h_abm_block_t* b = p->gc_bab[i];
 		if (b == NULL)
