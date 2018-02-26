@@ -411,13 +411,13 @@ int32_t h4h_page_ftl_get_free_ppas (
 
 				if (p->curr_puid == start_puid)
 				{
-					if (p->bai->nr_free_blks + p->bai->nr_dirty_blks > 1)
+					if (retry)
 					{
-						p->curr_puid = (p->curr_puid + 1) % p->nr_punits;
+						retry = 0;
 						continue;
 					}
-					h4h_msg ("%d totalblks, %d free blks, %d dirty blks", p->bai->nr_total_blks, p->bai->nr_free_blks, p->bai->nr_dirty_blks);
-					h4h_msg ("no block is available");
+					h4h_msg ("[get_free_ppas] %d total blks, %d free blks, %d dirty blks", p->bai->nr_total_blks, p->bai->nr_free_blks, p->bai->nr_dirty_blks);
+					h4h_msg ("[get_free_ppas] no block is available");
 					return -1;
 				}
 			}
@@ -452,13 +452,13 @@ int32_t h4h_page_ftl_get_free_ppas (
 
 			if (p->curr_puid == start_puid)
 			{
-				if (p->bai->nr_free_blks + p->bai->nr_dirty_blks > 1)
+				if (retry)
 				{
-					p->curr_puid = (p->curr_puid + 1) % p->nr_punits;
+					retry = 0;
 					continue;
 				}
-				h4h_msg ("%d totalblks, %d free blks, %d dirty blks", p->bai->nr_total_blks, p->bai->nr_free_blks, p->bai->nr_dirty_blks);
-				h4h_msg ("no block is available");
+				h4h_msg ("[get_free_ppas] %d total blks, %d free blks, %d dirty blks", p->bai->nr_total_blks, p->bai->nr_free_blks, p->bai->nr_dirty_blks);
+				h4h_msg ("[get_free_ppas] no block is available");
 				return -1;
 			}
 		}
@@ -724,7 +724,7 @@ h4h_abm_block_t* __h4h_page_ftl_victim_selection_greedy (
 			v = b;
 			continue;
 		}
-		if (a->nr_invalid_subpages > v->nr_invalid_subpages)
+		if (b->nr_invalid_subpages > v->nr_invalid_subpages)
 			v = b;
 	}
 
@@ -1069,7 +1069,8 @@ uint32_t h4h_page_ftl_do_gc (h4h_drv_info_t* bdi, int64_t lpa)
 
 	/* get free_ppas for GC writes */
 	h4h_phyaddr_t* phyaddrs = NULL;
-	h4h_phyaddr_t start_ppa;
+	h4h_phyaddr_t start_ppa, reset_ppa;
+	h4h_abm_block_t* reset_block;
 	int32_t alloc_size, total_size = 0;
 	phyaddrs = h4h_malloc (sizeof(h4h_phyaddr_t) * nr_llm_reqs);
 	i = 0;
@@ -1079,9 +1080,29 @@ uint32_t h4h_page_ftl_do_gc (h4h_drv_info_t* bdi, int64_t lpa)
 		alloc_size = h4h_page_ftl_get_free_ppas (bdi, 0, nr_llm_reqs - total_size, &start_ppa);
 		if (alloc_size < 0)
 		{
-			h4h_error ("'ftl->get_free_ppas' failed while GC-ing");
+			/* reset previous block offset */
+			for (j = 0; j < i; ++j)
+			{
+				reset_ppa = phyaddrs[j];
+				reset_block = h4h_abm_get_block (p->bai, reset_ppa.channel_no, reset_ppa.chip_no, reset_ppa.block_no);
+				reset_block->offset -= 1;
+			}
 			h4h_free (phyaddrs);
-			return -1;
+
+			/* no free space, so just erase blocks which are full of invalid pages */
+			h4h_msg ("[do_gc] no free space for GC copy, just erasing fully-invalid blocks");
+			j = 0;
+			for (i = 0; i < nr_gc_blks; ++i)
+			{
+				if (p->gc_bab[i]->nr_invalid_subpages != np->nr_subpages_per_block)
+				{
+					p->gc_bab[i] = NULL;
+					++j;
+				}
+			}
+			nr_gc_blks -= j;
+
+			goto erase_blks;
 		}
 		total_size += alloc_size;
 		for (; i < total_size; ++i)
@@ -1136,7 +1157,7 @@ uint32_t h4h_page_ftl_do_gc (h4h_drv_info_t* bdi, int64_t lpa)
 
 	/* erase blocks */
 erase_blks:
-	for (i = 0; i < nr_gc_blks; i++) {
+	for (i = 0; i < nr_punits; i++) {
 		h4h_abm_block_t* b = p->gc_bab[i];
 		if (b == NULL)
 			continue;
@@ -1158,7 +1179,7 @@ erase_blks:
 	hlm_gc->nr_llm_reqs = nr_gc_blks;
 	atomic64_set (&hlm_gc->nr_llm_reqs_done, 0);
 	h4h_sema_lock (&hlm_gc->done);
-	for (i = 0; i < nr_gc_blks; i++) {
+	for (i = 0; i < nr_punits; i++) {
 		if (p->gc_bab[i] == NULL)
 			continue;
 		if ((bdi->ptr_llm_inf->make_req (bdi, &hlm_gc->llm_reqs[i])) != 0) {
@@ -1170,7 +1191,7 @@ erase_blks:
 	h4h_sema_unlock (&hlm_gc->done);
 
 	/* FIXME: what happens if block erasure fails */
-	for (i = 0; i < nr_gc_blks; i++) {
+	for (i = 0; i < nr_punits; i++) {
 		uint8_t ret = 0;
 		h4h_abm_block_t* b = p->gc_bab[i];
 		if (b == NULL)
