@@ -1052,7 +1052,7 @@ uint32_t h4h_page_ftl_do_gc (h4h_drv_info_t* bdi, int64_t lpa)
 #include "hlm_reqs_pool.h"
 	hlm_reqs_pool_write_compaction (hlm_gc_w, hlm_gc, np);
 
-	h4h_msg ("compaction: %llu => %llu", nr_llm_reqs, hlm_gc_w->nr_llm_reqs);
+	/*h4h_msg ("compaction: %llu => %llu", nr_llm_reqs, hlm_gc_w->nr_llm_reqs);*/
 
 	nr_llm_reqs = hlm_gc_w->nr_llm_reqs;
 
