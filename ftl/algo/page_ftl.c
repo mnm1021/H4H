@@ -385,13 +385,6 @@ int32_t h4h_page_ftl_get_free_ppas (
 	int retry = 1;
 	int advance_puid = 0;
 
-//	/* get the channel & chip numbers */
-//	curr_channel = p->curr_puid % np->nr_channels;
-//	curr_chip = p->curr_puid / np->nr_channels;
-//		
-//	/* get active block */
-//	b = p->ac_bab[curr_channel * np->nr_chips_per_channel + curr_chip];
-
 	/* get allocator block */
 	switch (data_hotness)
 	{
@@ -932,7 +925,7 @@ uint32_t h4h_page_ftl_do_gc (h4h_drv_info_t* bdi, int64_t lpa)
 	}
 
 //	if (nr_gc_blks < nr_punits) {
-	if (nr_gc_blks == 0) {
+	if (nr_gc_blks * 20 <= nr_punits) { /* 5% of the whole punits */
 		/* TODO: we need to implement a load balancing feature to avoid this */
 		/*h4h_warning ("TODO: this warning will be removed with load-balancing");*/
 		return 0;
@@ -1059,7 +1052,7 @@ uint32_t h4h_page_ftl_do_gc (h4h_drv_info_t* bdi, int64_t lpa)
 #include "hlm_reqs_pool.h"
 	hlm_reqs_pool_write_compaction (hlm_gc_w, hlm_gc, np);
 
-	/*h4h_msg ("compaction: %llu => %llu", nr_llm_reqs, hlm_gc_w->nr_llm_reqs);*/
+	h4h_msg ("compaction: %llu => %llu", nr_llm_reqs, hlm_gc_w->nr_llm_reqs);
 
 	nr_llm_reqs = hlm_gc_w->nr_llm_reqs;
 
