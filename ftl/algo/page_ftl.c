@@ -877,7 +877,7 @@ uint32_t h4h_page_ftl_do_gc (h4h_drv_info_t* bdi, int64_t lpa)
 	}
 
 //	if (nr_gc_blks < nr_punits) {
-	if (nr_gc_blks == 0) {
+	if (nr_gc_blks * 20 <= nr_punits) { /* 5% of the whole punits */
 		/* TODO: we need to implement a load balancing feature to avoid this */
 		/*h4h_warning ("TODO: this warning will be removed with load-balancing");*/
 		return 0;
