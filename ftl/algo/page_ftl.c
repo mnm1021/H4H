@@ -367,7 +367,8 @@ int32_t h4h_page_ftl_get_free_ppas (
 	h4h_drv_info_t* bdi,
 	int64_t lpa,
 	uint32_t size,
-	h4h_phyaddr_t* start_ppa)
+	h4h_phyaddr_t* start_ppa,
+	uint8_t data_hotness)
 {
 	h4h_page_ftl_private_t* p = _ftl_page_ftl.ptr_private;
 	h4h_device_params_t* np = H4H_GET_DEVICE_PARAMS (bdi);
@@ -936,7 +937,7 @@ uint32_t h4h_page_ftl_do_gc (h4h_drv_info_t* bdi, int64_t lpa)
 		}
 	}
 //	if (nr_gc_blks < nr_punits) {
-	if (nr_gc_blks == 0) {
+	if (nr_gc_blks * 20 <= nr_punits) { /* 5% of the whole punits */
 		/* TODO: we need to implement a load balancing feature to avoid this */
 		/*h4h_warning ("TODO: this warning will be removed with load-balancing");*/
 		return 0;
@@ -1077,7 +1078,8 @@ uint32_t h4h_page_ftl_do_gc (h4h_drv_info_t* bdi, int64_t lpa)
 
 	while (total_size < nr_llm_reqs)
 	{
-		alloc_size = h4h_page_ftl_get_free_ppas (bdi, 0, nr_llm_reqs - total_size, &start_ppa);
+		/* GC-migrated data can be diagnosed as cold data. */
+		alloc_size = h4h_page_ftl_get_free_ppas (bdi, 0, nr_llm_reqs - total_size, &start_ppa, DATA_COLD);
 		if (alloc_size < 0)
 		{
 			/* reset previous block offset */

@@ -122,6 +122,11 @@ enum H4H_REQTYPE {
 #define h4h_is_erase(type) (((type & REQTYPE_IO_ERASE) == REQTYPE_IO_ERASE) ? 1 : 0)
 #define h4h_is_trim(type) (((type & REQTYPE_IO_TRIM) == REQTYPE_IO_TRIM) ? 1 : 0)
 
+enum H4H_DATA_HOTNESS {
+	DATA_COLD	= 0,
+	DATA_WARM	= 1,
+	DATA_HOT	= 2
+};
 
 /* a physical address */
 typedef struct {
@@ -148,6 +153,8 @@ typedef struct {
 	void* bio; /* reserved for kernel's bio requests */
 	void* user; /* keep user's data structure */
 	void (*cb_done) (void* req); /* call-back function which is called when a request is done */
+
+	uint8_t data_hotness; /* HOT | WARM | COLD */
 } h4h_blkio_req_t;
 
 #define H4H_ALIGN_UP(addr,size)		(((addr)+((size)-1))&(~((size)-1)))
@@ -222,6 +229,8 @@ typedef struct {
 
 	void* blkio_req;
 	uint8_t ret;
+
+	uint8_t data_hotness; /* HOT | WARM | COLD */
 } h4h_hlm_req_t;
 
 #define h4h_hlm_for_each_llm_req(r, h, i) \
@@ -339,7 +348,7 @@ typedef struct {
 	void (*finish_mapblk_load) (h4h_drv_info_t* bdi, h4h_llm_req_t* r);
 
 	/* interfaces for block-granularity */
-	int32_t (*get_free_ppas) (h4h_drv_info_t* bdi, int64_t lpa, uint32_t size, h4h_phyaddr_t* start_ppa);
+	int32_t (*get_free_ppas) (h4h_drv_info_t* bdi, int64_t lpa, uint32_t size, h4h_phyaddr_t* start_ppa, uint8_t data_hotness);
 } h4h_ftl_inf_t;
 
 
