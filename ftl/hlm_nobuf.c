@@ -123,7 +123,7 @@ uint32_t __hlm_nobuf_make_rw_req (h4h_drv_info_t* bdi, h4h_hlm_req_t* hr)
 		
 		while (total_alloc_size < size)
 		{
-			alloc_size = ftl->get_free_ppas (bdi, 0, size - total_alloc_size, &start_ppa);
+			alloc_size = ftl->get_free_ppas (bdi, 0, size - total_alloc_size, &start_ppa, hr->data_hotness);
 			if (alloc_size < 0)
 			{
 				h4h_error ("'ftl->get_free_ppas' failed");

@@ -96,6 +96,10 @@ void host_thread_fn_write (void *data)
 			blkio_req->bi_bvec_ptr[j][1] = 0x0B;
 			blkio_req->bi_bvec_ptr[j][2] = 0x0C;
 		}
+		if (i % 3 == 1)
+			blkio_req->data_hotness = DATA_COLD;
+		else
+			blkio_req->data_hotness = DATA_HOT;
 		/* send req to ftl */
 		_bdi->ptr_host_inf->make_req (_bdi, blkio_req);
 
@@ -126,6 +130,7 @@ void host_thread_fn_trim (void *data)
 				blkio_req->bi_bvec_ptr[j][1] = 0x0B;
 				blkio_req->bi_bvec_ptr[j][2] = 0x0C;
 			}
+			blkio_req->data_hotness = DATA_HOT;
 			/* send req to ftl */
 			_bdi->ptr_host_inf->make_req (_bdi, blkio_req);
 		}
@@ -157,6 +162,7 @@ void host_thread_fn_write2 (void *data)
 				blkio_req->bi_bvec_ptr[j][1] = 0x0B;
 				blkio_req->bi_bvec_ptr[j][2] = 0x0C;
 			}
+			blkio_req->data_hotness = DATA_HOT;
 			/* send req to ftl */
 			_bdi->ptr_host_inf->make_req (_bdi, blkio_req);
 		}

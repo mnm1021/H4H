@@ -102,6 +102,11 @@ typedef struct {
 
 	/* for bad-block scanning */
 	h4h_sema_t badblk;
+
+	/* 3 different allocator for data separation */
+	h4h_abm_block_t* cold_blk;
+	h4h_abm_block_t* warm_blk;
+	h4h_abm_block_t* hot_blk;
 } h4h_page_ftl_private_t;
 
 
@@ -272,6 +277,11 @@ uint32_t h4h_page_ftl_create (h4h_drv_info_t* bdi)
 	h4h_sema_init (&p->gc_hlm_w.done);
 	hlm_reqs_pool_allocate_llm_reqs (p->gc_hlm_w.llm_reqs, p->nr_punits_pages, RP_MEM_PHY);
 
+	/* initialize allocators */
+	p->cold_blk = NULL;
+	p->warm_blk = NULL;
+	p->hot_blk = NULL;
+
 	return 0;
 }
 
@@ -362,7 +372,8 @@ int32_t h4h_page_ftl_get_free_ppas (
 	h4h_drv_info_t* bdi,
 	int64_t lpa,
 	uint32_t size,
-	h4h_phyaddr_t* start_ppa)
+	h4h_phyaddr_t* start_ppa,
+	uint8_t data_hotness)
 {
 	h4h_page_ftl_private_t* p = _ftl_page_ftl.ptr_private;
 	h4h_device_params_t* np = H4H_GET_DEVICE_PARAMS (bdi);
@@ -372,17 +383,44 @@ int32_t h4h_page_ftl_get_free_ppas (
 	int32_t ret_size;
 	int start_puid;
 	int retry = 1;
+	int advance_puid = 0;
 
-	start_puid = p->curr_puid;
+//	/* get the channel & chip numbers */
+//	curr_channel = p->curr_puid % np->nr_channels;
+//	curr_chip = p->curr_puid / np->nr_channels;
+//		
+//	/* get active block */
+//	b = p->ac_bab[curr_channel * np->nr_chips_per_channel + curr_chip];
 
-	/* get the channel & chip numbers */
-	curr_channel = p->curr_puid % np->nr_channels;
-	curr_chip = p->curr_puid / np->nr_channels;
-		
-	/* get active block */
-	b = p->ac_bab[curr_channel * np->nr_chips_per_channel + curr_chip];
+	/* get allocator block */
+	switch (data_hotness)
+	{
+		case DATA_COLD:
+			b = p->cold_blk; break;
+		case DATA_WARM:
+			b = p->warm_blk; break;
+		case DATA_HOT:
+			b = p->hot_blk;
+	}
 
-	while (b == NULL)
+	/* set current channel and chip */
+	if (b != NULL && b->offset != np->nr_pages_per_block)
+	{
+		curr_channel = b->channel_no;
+		curr_chip = b->chip_no;
+	}
+	else
+	{
+		/* if given allcoator block is full or NULL, get new block from current puid */
+		curr_channel = p->curr_puid % np->nr_channels;
+		curr_chip = p->curr_puid / np->nr_channels;
+		b = p->ac_bab[curr_channel * np->nr_chips_per_channel + curr_chip];
+		start_puid = p->curr_puid;
+
+		advance_puid = 1;
+	}
+
+	while (b == NULL || b->offset == np->nr_pages_per_block)
 	{
 		/* search next block for current puid */
 		b = h4h_abm_get_free_block_prepare (p->bai, curr_channel, curr_chip);
@@ -390,7 +428,6 @@ int32_t h4h_page_ftl_get_free_ppas (
 		{
 			h4h_abm_get_free_block_commit (p->bai, b);
 			p->ac_bab[curr_channel * np->nr_chips_per_channel + curr_chip] = b;
-			break;
 		}
 
 		/* switch to next puid */
@@ -410,6 +447,8 @@ int32_t h4h_page_ftl_get_free_ppas (
 			h4h_msg ("[get_free_ppas] no block is available");
 			return -1;
 		}
+
+		advance_puid = 1;
 	}
 
 	/* get physical offset of the active blocks */
@@ -431,9 +470,22 @@ int32_t h4h_page_ftl_get_free_ppas (
 		b->offset += size;
 	}
 
+	/* set allocator for new block */
+	switch (data_hotness)
+	{
+		case DATA_COLD:
+			p->cold_blk = b; break;
+		case DATA_WARM:
+			p->warm_blk = b; break;
+		case DATA_HOT:
+			p->hot_blk = b;
+	}
+
 	/* get next free block if block is full */
 	if (b->offset == np->nr_pages_per_block)
 	{
+		curr_channel = b->channel_no;
+		curr_chip = b->chip_no;
 		b = h4h_abm_get_free_block_prepare (p->bai, curr_channel, curr_chip);
 
 		if (b != NULL)
@@ -447,8 +499,10 @@ int32_t h4h_page_ftl_get_free_ppas (
 //		}
 
 		p->ac_bab[curr_channel * np->nr_chips_per_channel + curr_chip] = b;
+	}
 
-		/* advance to next puid */
+	if (advance_puid)
+	{
 		p->curr_puid = (p->curr_puid + 1) % p->nr_punits;
 	}
 
@@ -1019,7 +1073,8 @@ uint32_t h4h_page_ftl_do_gc (h4h_drv_info_t* bdi, int64_t lpa)
 
 	while (total_size < nr_llm_reqs)
 	{
-		alloc_size = h4h_page_ftl_get_free_ppas (bdi, 0, nr_llm_reqs - total_size, &start_ppa);
+		/* rewritten data can be diagnosed as cold data. */
+		alloc_size = h4h_page_ftl_get_free_ppas (bdi, 0, nr_llm_reqs - total_size, &start_ppa, DATA_COLD);
 		if (alloc_size < 0)
 		{
 			/* erase previous block offset */

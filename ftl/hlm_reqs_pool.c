@@ -507,6 +507,9 @@ int h4h_hlm_reqs_pool_build_req (
 		return 1;
 	}
 
+	/* inherit data hotness of blkio_req */
+	hr->data_hotness = br->data_hotness;
+
 	return 0;
 }
 

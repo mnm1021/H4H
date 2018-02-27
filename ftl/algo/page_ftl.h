@@ -53,7 +53,7 @@ uint32_t h4h_page_badblock_scan (h4h_drv_info_t* bdi);
 uint32_t h4h_page_ftl_load (h4h_drv_info_t* bdi, const char* fn);
 uint32_t h4h_page_ftl_store (h4h_drv_info_t* bdi, const char* fn);
 
-int32_t h4h_page_ftl_get_free_ppas (h4h_drv_info_t* bdi, int64_t lpa, uint32_t size, h4h_phyaddr_t* start_ppa);
+int32_t h4h_page_ftl_get_free_ppas (h4h_drv_info_t* bdi, int64_t lpa, uint32_t size, h4h_phyaddr_t* start_ppa, uint8_t data_hotness);
 
 
 #endif /* _H4H_FTL_BLOCKFTL_H */
