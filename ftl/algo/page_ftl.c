@@ -103,7 +103,9 @@ typedef struct {
 	/* for bad-block scanning */
 	h4h_sema_t badblk;
 
-	h4h_abm_block_t* spare_blk;
+	h4h_abm_block_t* cold_blk;
+	h4h_abm_block_t* warm_blk;
+	h4h_abm_block_t* hot_blk;
 } h4h_page_ftl_private_t;
 
 
@@ -275,7 +277,9 @@ uint32_t h4h_page_ftl_create (h4h_drv_info_t* bdi)
 	hlm_reqs_pool_allocate_llm_reqs (p->gc_hlm_w.llm_reqs, p->nr_punits_pages, RP_MEM_PHY);
 
 	/* initialize spare block */
-	p->spare_blk = NULL;
+	p->cold_blk = NULL;
+	p->warm_blk = NULL;
+	p->hot_blk = NULL;
 
 	return 0;
 }
@@ -379,6 +383,7 @@ int32_t h4h_page_ftl_get_free_ppas (
 	int32_t ret_size;
 	int start_puid;
 	int retry = 1;
+	int advance_puid = 0;
 
 	start_puid = p->curr_puid;
 
@@ -389,47 +394,71 @@ int32_t h4h_page_ftl_get_free_ppas (
 	/* write to spare block if size is less than the block size */
 	if (size < np->nr_pages_per_block)
 	{
-		/* get new spare block if NULL of full */
-		if (p->spare_blk == NULL || p->spare_blk->offset == np->nr_pages_per_block)
+		/* select allocator by data hotness. */
+		switch (data_hotness)
 		{
-			p->spare_blk = p->ac_bab[curr_channel * np->nr_chips_per_channel + curr_chip];
-			while (p->spare_blk == NULL)
-			{
-				/* reclaim for free block */
-				b = h4h_abm_get_free_block_prepare (p->bai, curr_channel, curr_chip);
-				if (b != NULL)
-				{
-					h4h_abm_get_free_block_commit (p->bai, b);
-					p->ac_bab[curr_channel * np->nr_chips_per_channel + curr_chip] = b;
-				}
-	
-				/* switch to new puid */
-				p->curr_puid = (p->curr_puid + 1) % p->nr_punits;
-				curr_channel = p->curr_puid % np->nr_channels;
-				curr_chip = p->curr_puid / np->nr_channels;
-	
-				p->spare_blk = p->ac_bab[curr_channel * np->nr_chips_per_channel + curr_chip];
-
-				if (p->curr_puid == start_puid)
-				{
-					if (retry)
-					{
-						retry = 0;
-						continue;
-					}
-					h4h_msg ("[get_free_ppas] %d total blks, %d free blks, %d dirty blks", p->bai->nr_total_blks, p->bai->nr_free_blks, p->bai->nr_dirty_blks);
-					h4h_msg ("[get_free_ppas] no block is available");
-					return -1;
-				}
-			}
-			p->curr_puid = (p->curr_puid + 1) % p->nr_punits;
+			case DATA_COLD:
+				b = p->cold_blk; break;
+			case DATA_WARM:
+				b = p->warm_blk; break;
+			case DATA_HOT:
+				b = p->hot_blk;
 		}
 
-		b = p->spare_blk;
+		/* set current channel and chip */
+		if (b != NULL && b->offset != np->nr_pages_per_block)
+		{
+			curr_channel = b->channel_no;
+			curr_chip = b->chip_no;
+		}
+		else
+		{
+			/* if given allocator block is full or NULL, get new block from current puid */
+			b = p->ac_bab[curr_channel * np->nr_chips_per_channel + curr_chip];
+			advance_puid = 1;
+		}
 
-		/* reset current channel and chip number according to the spare block */
-		curr_channel = b->channel_no;
-		curr_chip = b->chip_no;
+		while (b == NULL || b->offset == np->nr_pages_per_block)
+		{
+			/* reclaim for free block */
+			b = h4h_abm_get_free_block_prepare (p->bai, curr_channel, curr_chip);
+			if (b != NULL)
+			{
+				h4h_abm_get_free_block_commit (p->bai, b);
+				p->ac_bab[curr_channel * np->nr_chips_per_channel + curr_chip] = b;
+			}
+
+			/* switch to new puid */
+			p->curr_puid = (p->curr_puid + 1) % p->nr_punits;
+			curr_channel = p->curr_puid % np->nr_channels;
+			curr_chip = p->curr_puid / np->nr_channels;
+
+			b = p->ac_bab[curr_channel * np->nr_chips_per_channel + curr_chip];
+			if (p->curr_puid == start_puid)
+			{
+				if (retry)
+				{
+					retry = 0;
+					continue;
+				}
+				h4h_msg ("[get_free_ppas] %d total blks, %d free blks, %d dirty blks", p->bai->nr_total_blks, p->bai->nr_free_blks, p->bai->nr_dirty_blks);
+				h4h_msg ("[get_free_ppas] no block is available");
+				return -1;
+			}
+
+			advance_puid = 1;
+		}
+
+		/* set allocator for new block */
+		switch (data_hotness)
+		{
+			case DATA_COLD:
+				p->cold_blk = b; break;
+			case DATA_WARM:
+				p->warm_blk = b; break;
+			case DATA_HOT:
+				p->hot_blk = b;
+		}
 	}
 	else
 	{
@@ -463,7 +492,8 @@ int32_t h4h_page_ftl_get_free_ppas (
 				return -1;
 			}
 		}
-		p->curr_puid = (p->curr_puid + 1) % p->nr_punits;
+
+		advance_puid = 1;
 	}
 
 	/* get physical offset of the active block */
@@ -501,15 +531,11 @@ int32_t h4h_page_ftl_get_free_ppas (
 //		}
 
 		p->ac_bab[curr_channel * np->nr_chips_per_channel + curr_chip] = b;
+	}
 
+	if (advance_puid)
+	{
 		p->curr_puid = (p->curr_puid + 1) % p->nr_punits;
-
-		if (size < np->nr_pages_per_block)
-		{
-			curr_channel = p->curr_puid % np->nr_channels;
-			curr_chip = p->curr_puid / np->nr_channels;
-			p->spare_blk = p->ac_bab[curr_channel * np->nr_chips_per_channel + curr_chip];
-		}
 	}
 
 	return ret_size;
