@@ -390,7 +390,6 @@ int32_t h4h_page_ftl_get_free_ppas (
 		{
 			h4h_abm_get_free_block_commit (p->bai, b);
 			p->ac_bab[curr_channel * np->nr_chips_per_channel + curr_chip] = b;
-			break;
 		}
 
 		/* switch to next puid */
