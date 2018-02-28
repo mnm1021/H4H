@@ -46,6 +46,7 @@ THE SOFTWARE.
 #include "algo/block_ftl.h"
 #include "algo/page_ftl.h"
 
+#define STATIC_MAPPING /* addresses are already mapped by logical block. */
 
 /* interface for hlm_nobuf */
 h4h_hlm_inf_t _hlm_nobuf_inf = {
@@ -113,6 +114,7 @@ uint32_t __hlm_nobuf_make_rw_req (h4h_drv_info_t* bdi, h4h_hlm_req_t* hr)
 	h4h_phyaddr_t* phyaddrs = NULL;
 	int32_t size, alloc_size, total_alloc_size;
 
+#ifndef STATIC_MAPPING
 	/* allocate request by sequential address if write */
 	if (h4h_is_write (hr->req_type))
 	{
@@ -139,6 +141,7 @@ uint32_t __hlm_nobuf_make_rw_req (h4h_drv_info_t* bdi, h4h_hlm_req_t* hr)
 			}
 		}
 	}
+#endif /* STATIC_MAPPING */
 
 	/* perform mapping with the FTL */
 	h4h_hlm_for_each_llm_req (lr, hr, i) {
@@ -154,18 +157,19 @@ uint32_t __hlm_nobuf_make_rw_req (h4h_drv_info_t* bdi, h4h_hlm_req_t* hr)
 					hlm_reqs_pool_relocate_kp (lr, sp_ofs);
 				}
 			} else if (h4h_is_write (lr->req_type)) {
-				/*
-				if (ftl->get_free_ppa (bdi, lr->logaddr.lpa[0], &lr->phyaddr) != 0) {
-					h4h_error ("`ftl->get_free_ppa' failed");
+#ifdef STATIC_MAPPING
+				if (ftl->get_ppa (bdi, lr->logaddr.lpa[0], &lr->phyaddr, &sp_ofs) != 0) {
+					h4h_error ("address not mapped by logical block");
 					goto fail;
 				}
-				*/
+#else
 				h4h_memcpy (&lr->phyaddr, &phyaddrs[i], sizeof(h4h_phyaddr_t));
 
 				if (ftl->map_lpa_to_ppa (bdi, &lr->logaddr, &lr->phyaddr) != 0) {
 					h4h_error ("`ftl->map_lpa_to_ppa' failed");
 					goto fail;
 				}
+#endif /* STATIC_MAPPING */
 			} else {
 				h4h_error ("oops! invalid type (%x)", lr->req_type);
 				h4h_bug_on (1);
