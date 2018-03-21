@@ -76,7 +76,7 @@ h4h_drv_info_t* _bdi = NULL;
 #define FLBSIZE 70
 //#define TOTAL_BLOCKS 16 * 2 * 64		// 16 channels 2 chips 64 blocks 
 #define TOTAL_BLOCKS 8 * 8 * 38			// 8 channels 2 chips 32 blocks 
-#define BLK_IO_SIZE 8 * 2 	// default 8 = 4KB
+#define BLK_IO_SIZE 8 * 4 	// default 8 = 4KB
 
 int num;
 
@@ -123,7 +123,7 @@ void blk_lbn_io (char type, int lbn) {
 		}
 	}
 
-	for (i = 0; i < ALBSIZE / 2; i++) {
+	for (i = 0; i < ALBSIZE / 4; i++) {
 		/* build blkio req */
 		if (type == 'W') blkio_req->bi_rw = REQTYPE_WRITE;
 		else if ( type == 'I') blkio_req->bi_rw = REQTYPE_TRIM;
@@ -150,12 +150,25 @@ void host_thread_fn_LSM_trace (void* data)
 	FILE* fp;
 	char op;
 	int num;
+	int level;
 
 	fp = fopen ("data.txt", "r");
 
-	while (fscanf (fp, "%c %d\n", &op, &num) == 2)
+	while (fscanf (fp, "%c %d", &op, &num) == 2)
 	{
-		blk_lbn_io (op, num);
+		if (op == 'W')
+		{
+			fscanf (fp, " %d\n", &level);
+		}
+		else
+		{
+			fscanf (fp, "\n");
+		}
+
+		if (op != 'R')
+		{
+			blk_lbn_io (op, num);
+		}
 	}
 }
 
