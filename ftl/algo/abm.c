@@ -535,9 +535,9 @@ void h4h_abm_invalidate_page (
 		/* is the block clean? */
 		if (b->nr_invalid_subpages == 0) {
 			if (b->status != H4H_ABM_BLK_CLEAN) {
-				h4h_msg ("b->status: %u (%llu %llu %llu) (%llu %llu)", 
-					b->status, channel_no, chip_no, block_no, page_no, subpage_no);
-				h4h_bug_on (b->status != H4H_ABM_BLK_CLEAN);
+//				h4h_msg ("b->status: %u (%llu %llu %llu) (%llu %llu)", 
+//					b->status, channel_no, chip_no, block_no, page_no, subpage_no);
+//				h4h_bug_on (b->status != H4H_ABM_BLK_CLEAN);
 			}
 
 			/* if so, its status is changed and then moved to a dirty list */
