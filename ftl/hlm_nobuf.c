@@ -315,9 +315,15 @@ uint32_t hlm_nobuf_make_req (h4h_drv_info_t* bdi, h4h_hlm_req_t* hr)
 		}
 	} else {
 		/* do we need to do garbage collection? */
-		__hlm_nobuf_check_ondemand_gc (bdi, hr);
+//		__hlm_nobuf_check_ondemand_gc (bdi, hr);
 
+		/* COMMENT on this patch:
+		 * since this FTL maps physical addresses BEFORE request submission,
+		 * GC before make_rw_req may incur inconsistency problem.
+		 */
 		ret = __hlm_nobuf_make_rw_req (bdi, hr);
+
+		__hlm_nobuf_check_ondemand_gc (bdi, hr);
 	} 
 
 	return ret;

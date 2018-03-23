@@ -97,7 +97,7 @@ uint32_t llm_noq_make_req (h4h_drv_info_t* bdi, h4h_llm_req_t* llm_req)
 	static uint64_t cnt = 0;
 
 	/* just for display */
-	if (cnt % 50000 == 0) h4h_msg ("llm_noq_make_req: %llu", cnt);
+	if (cnt % 1000000 == 0) h4h_msg ("llm_noq_make_req: %llu", cnt);
 	cnt++;
 
 	/* update pmu */
