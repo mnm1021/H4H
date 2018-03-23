@@ -223,6 +223,8 @@ void userio_end_req (h4h_drv_info_t* bdi, h4h_hlm_req_t* req)
 	}
 	*/
 
+	h4h_free (r);
+
 	/* destroy hlm_req */
 	h4h_hlm_reqs_pool_free_item (p->hlm_reqs_pool, req);
 
