@@ -79,10 +79,11 @@ h4h_drv_info_t* _bdi = NULL;
 #define BLK_IO_SIZE 8 * 4 	// default 8 = 4KB
 
 int num;
+uint8_t* bvec_ptr;
 
 void blk_lbn_io (char type, int lbn, int level) { 
 	
-	h4h_blkio_req_t* blkio_req = (h4h_blkio_req_t*)h4h_malloc (sizeof (h4h_blkio_req_t));
+	h4h_blkio_req_t* blkio_req;
 	int i = 0, j = 0;
 	int offset = ALBSIZE * lbn * 8;
 	uint8_t* bvec_ptr = (uint8_t*)h4h_malloc (4096);
@@ -139,6 +140,7 @@ void blk_lbn_io (char type, int lbn, int level) {
 
 	for (i = 0; i < ALBSIZE / 4; i++) {
 		/* build blkio req */
+		blkio_req = (h4h_blkio_req_t*)h4h_malloc (sizeof (h4h_blkio_req_t));
 		if (type == 'W') blkio_req->bi_rw = REQTYPE_WRITE;
 		else if ( type == 'I') blkio_req->bi_rw = REQTYPE_TRIM;
 		blkio_req->bi_offset = offset;
@@ -146,9 +148,6 @@ void blk_lbn_io (char type, int lbn, int level) {
 		blkio_req->bi_bvec_cnt = BLK_IO_SIZE / 8;
 		for (j = 0; j < blkio_req->bi_bvec_cnt; j++) {
 			blkio_req->bi_bvec_ptr[j] = bvec_ptr;
-			blkio_req->bi_bvec_ptr[j][0] = 0x0A;
-			blkio_req->bi_bvec_ptr[j][1] = 0x0B;
-			blkio_req->bi_bvec_ptr[j][2] = 0x0C;
 		}
 		/* send req to ftl */
 		_bdi->ptr_host_inf->make_req (_bdi, blkio_req);
@@ -185,6 +184,8 @@ void host_thread_fn_LSM_trace (void* data)
 			blk_lbn_io (op, num, level);
 		}
 	}
+
+	fclose (fp);
 }
 
 void host_thread_fn_write (void *data) //	for full page write 
@@ -254,6 +255,11 @@ int main (int argc, char** argv)
 	pthread_t thread[NUM_THREADS];
 	int thread_args[NUM_THREADS];
 
+	bvec_ptr = (uint8_t*)h4h_malloc(4096);
+	bvec_ptr[0] = 0x0A;
+	bvec_ptr[1] = 0x0B;
+	bvec_ptr[2] = 0x0C;
+
 	h4h_msg ("[main] run ftlib... (%d)", sizeof (h4h_llm_req_t));
 
 	h4h_msg ("[user-main] initialize h4h_drv");
@@ -318,6 +324,7 @@ int main (int argc, char** argv)
 	h4h_drv_destroy (_bdi);
 
 	h4h_msg ("[main] done");
+	h4h_free (bvec_ptr);
 
 	return 0;
 }
