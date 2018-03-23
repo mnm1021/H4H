@@ -223,6 +223,8 @@ void userio_end_req (h4h_drv_info_t* bdi, h4h_hlm_req_t* req)
 	}
 	*/
 
+	h4h_free (r);
+
 	/* destroy hlm_req */
 	h4h_hlm_reqs_pool_free_item (p->hlm_reqs_pool, req);
 
@@ -230,7 +232,7 @@ void userio_end_req (h4h_drv_info_t* bdi, h4h_hlm_req_t* req)
 	atomic_dec (&p->nr_host_reqs);
 
 	/* call call-back function */
-	if (r->cb_done)
-		r->cb_done (r);
+	//if (r->cb_done)
+	//	r->cb_done (r);
 }
 
