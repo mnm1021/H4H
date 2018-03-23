@@ -538,7 +538,7 @@ void hlm_reqs_pool_write_compaction (
 		hlm_reqs_pool_reset_fmain (&dst->llm_reqs[i].fmain);
 
 	dst_r = &dst->llm_reqs[0];
-	dst->nr_llm_reqs = 1;
+	//dst->nr_llm_reqs = 1; /* this creates invalid requests during GC */
 	for (i = 0; i < nr_punits * np->nr_pages_per_block; i++) {
 		src_r = &src->llm_reqs[i];
 

@@ -122,9 +122,9 @@ int __llm_mq_thread (void* arg)
 
 			pmu_update_q (bdi, r);
 
-//			if (cnt % 50000 == 0) {
-//				h4h_msg ("llm_make_req: %llu, %llu", cnt, h4h_prior_queue_get_nr_items (p->q));
-//			}
+			if (cnt % 10000000 == 0) {
+				h4h_msg ("llm_make_req: %llu, %llu", cnt, h4h_prior_queue_get_nr_items (p->q));
+			}
 
 			if (bdi->ptr_dm_inf->make_req (bdi, r)) {
 				h4h_sema_unlock (&p->punit_locks[loop]);
@@ -285,10 +285,56 @@ void llm_mq_flush (h4h_drv_info_t* bdi)
 	}
 }
 
+/* structs required for making that the block is actually written to media. */
+#include "../../ftl/algo/abm.h"
+typedef struct {
+	uint8_t status; /* H4H_PFTL_PAGE_STATUS */
+	h4h_phyaddr_t phyaddr; /* physical location */
+	uint8_t sp_off;
+} h4h_page_mapping_entry_t;
+
+typedef struct {
+	h4h_abm_info_t* bai;
+	h4h_page_mapping_entry_t* ptr_mapping_table;
+	h4h_spinlock_t ftl_lock;
+	uint64_t nr_punits;
+	uint64_t nr_punits_pages;
+
+	/* for the management of active blocks */
+	uint64_t curr_puid;
+	uint64_t curr_page_ofs;
+	h4h_abm_block_t** ac_bab;
+
+	/* reserved for gc (reused whenever gc is invoked) */
+	h4h_abm_block_t** gc_bab;
+	h4h_hlm_req_gc_t gc_hlm;
+	h4h_hlm_req_gc_t gc_hlm_w;
+
+	/* for bad-block scanning */
+	h4h_sema_t badblk;
+
+	h4h_abm_block_t* cold_blk;
+	h4h_abm_block_t* warm_blk;
+	h4h_abm_block_t* hot_blk;
+} h4h_page_ftl_private_t;
+
 void llm_mq_end_req (h4h_drv_info_t* bdi, h4h_llm_req_t* r)
 {
 	struct h4h_llm_mq_private* p = (struct h4h_llm_mq_private*)H4H_LLM_PRIV(bdi);
 	h4h_prior_queue_item_t* qitem = (h4h_prior_queue_item_t*)r->ptr_qitem;
+
+	/* at the write to last page of certain block, we assume that this block is fully written */
+	if (h4h_is_write (r->req_type) &&
+			r->phyaddr.page_no == H4H_GET_DEVICE_PARAMS (bdi)->nr_pages_per_block - 1)
+	{
+		h4h_abm_block_t* block = h4h_abm_get_block (
+				((h4h_page_ftl_private_t *)H4H_FTL_PRIV (bdi))->bai,
+				r->phyaddr.channel_no,
+				r->phyaddr.chip_no,
+				r->phyaddr.block_no
+				);
+		block->is_full = 1;
+	}
 
 	if (h4h_is_rmw (r->req_type) && h4h_is_read(r->req_type)) {
 		/* get a parallel unit ID */
