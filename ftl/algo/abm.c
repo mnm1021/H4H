@@ -138,6 +138,7 @@ h4h_abm_info_t* h4h_abm_create (
 		bai->blocks[loop].pst = NULL;
 		bai->blocks[loop].nr_invalid_subpages = 0;
 		bai->blocks[loop].offset = 0;
+		bai->blocks[loop].is_full = 0;
 		/* create a 'page status table' (pst) if necessary */
 		if (use_pst) {
 			if ((bai->blocks[loop].pst = __h4h_abm_create_pst (np)) == NULL) {
@@ -431,6 +432,7 @@ void h4h_abm_erase_block (
 
 	/* reset offset */
 	blk->offset = 0;
+	blk->is_full = 0;
 }
 
 void h4h_abm_set_to_dirty_block (
@@ -535,9 +537,9 @@ void h4h_abm_invalidate_page (
 		/* is the block clean? */
 		if (b->nr_invalid_subpages == 0) {
 			if (b->status != H4H_ABM_BLK_CLEAN) {
-//				h4h_msg ("b->status: %u (%llu %llu %llu) (%llu %llu)", 
-//					b->status, channel_no, chip_no, block_no, page_no, subpage_no);
-//				h4h_bug_on (b->status != H4H_ABM_BLK_CLEAN);
+				h4h_msg ("b->status: %u (%llu %llu %llu) (%llu %llu)",
+					b->status, channel_no, chip_no, block_no, page_no, subpage_no);
+				h4h_bug_on (b->status != H4H_ABM_BLK_CLEAN);
 			}
 
 			/* if so, its status is changed and then moved to a dirty list */
