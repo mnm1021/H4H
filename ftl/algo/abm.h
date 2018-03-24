@@ -70,7 +70,7 @@ typedef struct {
 	struct list_head list;	/* for list */
 
 	uint16_t offset; /* page offset */
-	uint8_t is_full; /* indicates that block is full written or not */
+	atomic64_t is_full; /* indicates that block is full written or not */
 } h4h_abm_block_t;
 
 typedef struct {

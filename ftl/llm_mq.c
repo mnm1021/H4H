@@ -325,8 +325,8 @@ void llm_mq_end_req (h4h_drv_info_t* bdi, h4h_llm_req_t* r)
 	h4h_prior_queue_item_t* qitem = (h4h_prior_queue_item_t*)r->ptr_qitem;
 
 	/* at the write to last page of certain block, we assume that this block is fully written. */
-	if (h4h_is_write(r->req_type) &&
-			r->phyaddr.page_no == H4H_GET_DEVICE_PARAMS (bdi)->nr_pages_per_block - 1)
+//	if (h4h_is_write(r->req_type) &&
+//			r->phyaddr.page_no == H4H_GET_DEVICE_PARAMS (bdi)->nr_pages_per_block - 1)
 	{
 		h4h_abm_block_t* block = h4h_abm_get_block (
 				((h4h_page_ftl_private_t *)H4H_FTL_PRIV (bdi))->bai,
@@ -334,7 +334,8 @@ void llm_mq_end_req (h4h_drv_info_t* bdi, h4h_llm_req_t* r)
 				r->phyaddr.chip_no,
 				r->phyaddr.block_no
 				);
-		block->is_full = 1;
+//		block->is_full = 1;
+		atomic64_inc (&block->is_full);
 	}
 
 	if (h4h_is_rmw (r->req_type) && h4h_is_read(r->req_type)) {
