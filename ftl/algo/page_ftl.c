@@ -716,7 +716,7 @@ h4h_abm_block_t* __h4h_page_ftl_victim_selection_greedy (
 		b = h4h_abm_fetch_dirty_block (pos);
 		if (a == b)
 			continue;
-		if (b->is_full == 0) /* we don't select block that has valid pages yet. */
+		if (atomic64_read(&b->is_full) != np->nr_pages_per_block) /* we don't select block that has free pages yet. */
 			continue;
 		if (b->nr_invalid_subpages == np->nr_subpages_per_block) {
 			v = b;

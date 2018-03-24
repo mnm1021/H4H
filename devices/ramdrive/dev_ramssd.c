@@ -213,18 +213,18 @@ static uint8_t __ramssd_read_page (
 	}
 
 	/* copy the main page data to a buffer */
-	if (ri->np->nr_subpages_per_page == 1) {
-		for (loop = 0; loop < nr_kpages; loop++) {
-			if (partial == 1 && kp_stt[loop] == KP_STT_DATA) continue;
-			h4h_memcpy (kp_ptr[loop], ptr_ramssd_addr + KPAGE_SIZE * loop, KPAGE_SIZE);
-		}
-	} else {
-		for (loop = 0; loop < nr_kpages; loop++) {
-			if (partial == 1 && kp_stt[loop] == KP_STT_DATA) continue;
-			if (partial == 0 && kp_stt[loop] != KP_STT_DATA) continue;
-			h4h_memcpy (kp_ptr[loop], ptr_ramssd_addr + KPAGE_SIZE * loop, KPAGE_SIZE);
-		}
-	}
+//	if (ri->np->nr_subpages_per_page == 1) {
+//		for (loop = 0; loop < nr_kpages; loop++) {
+//			if (partial == 1 && kp_stt[loop] == KP_STT_DATA) continue;
+//			h4h_memcpy (kp_ptr[loop], ptr_ramssd_addr + KPAGE_SIZE * loop, KPAGE_SIZE);
+//		}
+//	} else {
+//		for (loop = 0; loop < nr_kpages; loop++) {
+//			if (partial == 1 && kp_stt[loop] == KP_STT_DATA) continue;
+//			if (partial == 0 && kp_stt[loop] != KP_STT_DATA) continue;
+//			h4h_memcpy (kp_ptr[loop], ptr_ramssd_addr + KPAGE_SIZE * loop, KPAGE_SIZE);
+//		}
+//	}
 
 	/* copy the OOB data to a buffer */
 	if (partial == 0 && oob && oob_data != NULL) {
@@ -299,18 +299,18 @@ static uint8_t __ramssd_prog_page (
 	}
 
 	/* copy the main page data to a buffer */
-	if (ri->np->nr_subpages_per_page == 1) {
-		for (loop = 0; loop < nr_kpages; loop++) {
-			h4h_memcpy (ptr_ramssd_addr + KPAGE_SIZE * loop, kp_ptr[loop], KPAGE_SIZE);
-		}
-	} else {
-		for (loop = 0; loop < nr_kpages; loop++) {
-			int64_t lpa = ((int64_t*)oob_data)[loop];
-			if (lpa < 0 || lpa == 0xffffffffffffffff) continue;
-			if (kp_stt[loop] != KP_STT_DATA) continue;
-			h4h_memcpy (ptr_ramssd_addr + KPAGE_SIZE * loop, kp_ptr[loop], KPAGE_SIZE);
-		}
-	}
+//	if (ri->np->nr_subpages_per_page == 1) {
+//		for (loop = 0; loop < nr_kpages; loop++) {
+//			h4h_memcpy (ptr_ramssd_addr + KPAGE_SIZE * loop, kp_ptr[loop], KPAGE_SIZE);
+//		}
+//	} else {
+//		for (loop = 0; loop < nr_kpages; loop++) {
+//			int64_t lpa = ((int64_t*)oob_data)[loop];
+//			if (lpa < 0 || lpa == 0xffffffffffffffff) continue;
+//			if (kp_stt[loop] != KP_STT_DATA) continue;
+//			h4h_memcpy (ptr_ramssd_addr + KPAGE_SIZE * loop, kp_ptr[loop], KPAGE_SIZE);
+//		}
+//	}
 
 	/* copy the OOB data to a buffer */
 	if (oob && oob_data != NULL) {
