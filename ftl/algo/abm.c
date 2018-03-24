@@ -138,7 +138,7 @@ h4h_abm_info_t* h4h_abm_create (
 		bai->blocks[loop].pst = NULL;
 		bai->blocks[loop].nr_invalid_subpages = 0;
 		bai->blocks[loop].offset = 0;
-		bai->blocks[loop].is_full = 0;
+		atomic64_set (&bai->blocks[loop].is_full, 0);
 		/* create a 'page status table' (pst) if necessary */
 		if (use_pst) {
 			if ((bai->blocks[loop].pst = __h4h_abm_create_pst (np)) == NULL) {
@@ -432,7 +432,7 @@ void h4h_abm_erase_block (
 
 	/* reset offset */
 	blk->offset = 0;
-	blk->is_full = 0;
+	atomic64_set (&blk->is_full, 0);
 }
 
 void h4h_abm_set_to_dirty_block (
